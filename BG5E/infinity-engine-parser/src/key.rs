@@ -4,7 +4,7 @@
 use std::fs;
 use std::io;
 use crate::bits::ReadValue;
-use crate::readString;
+use crate::{readString, readU32};
 
 const FileName: &str = "chitin.key";
 
@@ -15,17 +15,17 @@ const ResourceLocator_BifEntry: u32 = 12;
 const ResourceLocator_File: u32 = 14;
 const ResourceLocator_Tileset: u32 = 6;
 
-pub fn ReadKey(path: String) -> io::Result<Key>
+pub fn ReadKey(path: String) ->  io::Result<Key>
 {
 	let buffer = fs::read(path)?;
 	
 	// parse
 	let sig = readString!(buffer[0..4]);
 	let ver = readString!(buffer[4..8]);
-	let bec = u32::from_le_bytes(buffer[8..12].try_into().unwrap());
-	let rec = u32::from_le_bytes(buffer[12..16].try_into().unwrap());
-	let boffset = u32::from_le_bytes(buffer[16..20].try_into().unwrap());
-	let roffset = u32::from_le_bytes(buffer[20..24].try_into().unwrap());
+	let bec = readU32!(buffer[8..12]);
+	let rec = readU32!(buffer[12..16]);
+	let boffset = readU32!(buffer[16..20]);
+	let roffset = readU32!(buffer[20..24]);
 	
 	return Ok(Key {
 		signature: sig,
