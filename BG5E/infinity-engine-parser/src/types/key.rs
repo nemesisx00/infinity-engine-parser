@@ -8,6 +8,7 @@ use std::path::Path;
 use byteorder::{LittleEndian, ReadBytesExt};
 use crate::{readBytes, readString};
 use crate::bits::ReadValue;
+use crate::types::util::Identity;
 
 const FileName: &str = "chitin.key";
 
@@ -47,8 +48,7 @@ Offset | Size | Description
 #[derive(Debug, Default, Clone)]
 pub struct Key
 {
-	pub signature: String,
-	pub version: String,
+	pub identity: Identity,
 	pub bifCount: u32,
 	pub resourceCount: u32,
 	pub bifOffset: u32,
@@ -86,11 +86,7 @@ impl Key
 	*/
 	pub fn fromCursor(cursor: &mut Cursor<Vec<u8>>) -> io::Result<Self>
 	{
-		
-		let sigValue = readBytes!(cursor, 4);
-		let signature = readString!(sigValue);
-		let verValue = readBytes!(cursor, 4);
-		let version = readString!(verValue);
+		let identity = Identity::fromCursor(cursor)?;
 		let bifCount = cursor.read_u32::<LittleEndian>()?;
 		let resourceCount = cursor.read_u32::<LittleEndian>()?;
 		let bifOffset = cursor.read_u32::<LittleEndian>()?;
@@ -123,8 +119,7 @@ impl Key
 		}
 		
 		return Ok(Self {
-			signature,
-			version,
+			identity,
 			bifCount,
 			resourceCount,
 			bifOffset,
@@ -282,8 +277,8 @@ mod tests
 		
 		let result = Key::fromFile(filePath.as_path()).unwrap();
 		
-		assert_eq!(Signature, result.signature);
-		assert_eq!(Version, result.version);
+		assert_eq!(Signature, result.identity.signature);
+		assert_eq!(Version, result.identity.version);
 		assert_eq!(159, result.bifCount);
 		assert_eq!(16694, result.resourceCount);
 		assert_eq!(24, result.bifOffset);

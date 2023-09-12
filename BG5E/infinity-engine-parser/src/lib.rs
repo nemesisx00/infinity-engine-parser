@@ -3,8 +3,8 @@
 
 mod bits;
 mod bytes;
-mod key;
 mod platform;
+mod types;
 
 use ::safer_ffi::prelude::*;
 
