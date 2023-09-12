@@ -44,6 +44,8 @@ pub fn ReadValue(value: u32, bitIndex: u32, shift: u32) -> u32
 	return (value >> shift) & (1 << bitIndex) - 1;
 }
 
+// --------------------------------------------------
+
 #[cfg(test)]
 mod tests
 {
