@@ -254,7 +254,7 @@ mod tests
     }
 	
 	#[test]
-	fn FromFileTest()
+	fn KeyTest()
 	{
 		//TODO: Make this test not rely on actually reading a file from the file system.
 		let installPath = FindInstallationPath(Games::BaldursGate1).unwrap();
