@@ -1,7 +1,10 @@
 #![allow(non_snake_case, non_upper_case_globals)]
 #![cfg_attr(debug_assertions, allow(dead_code))]
 
-use crate::util::ReadValue;
+use std::fs;
+use std::io;
+use crate::bits::ReadValue;
+use crate::readString;
 
 const FileName: &str = "chitin.key";
 
@@ -11,6 +14,29 @@ const Version: &str = "V1  ";
 const ResourceLocator_BifEntry: u32 = 12;
 const ResourceLocator_File: u32 = 14;
 const ResourceLocator_Tileset: u32 = 6;
+
+pub fn ReadKey(path: String) -> io::Result<Key>
+{
+	let buffer = fs::read(path)?;
+	
+	// parse
+	let sig = readString!(buffer[0..4]);
+	let ver = readString!(buffer[4..8]);
+	let bec = u32::from_le_bytes(buffer[8..12].try_into().unwrap());
+	let rec = u32::from_le_bytes(buffer[12..16].try_into().unwrap());
+	let boffset = u32::from_le_bytes(buffer[16..20].try_into().unwrap());
+	let roffset = u32::from_le_bytes(buffer[20..24].try_into().unwrap());
+	
+	return Ok(Key {
+		signature: sig,
+		version: ver,
+		bifEntryCount: bec,
+		resourceEntryCount: rec,
+		bifOffset: boffset,
+		resourceOffset: roffset,
+		..Default::default()
+	});
+}
 
 /**
 The fully parsed contents of a KEY V1 file.
@@ -34,9 +60,11 @@ Offset | Size | Description
 0x0010 | 4 | Offset (from start of file) to BIF entries
 0x0014 | 4 | Offset (from start of file) to resource entries
 */
-#[derive(Debug, Clone)]
+#[derive(Debug, Default, Clone)]
 pub struct Key
 {
+	pub signature: String,
+	pub version: String,
 	pub bifEntryCount: u32,
 	pub resourceEntryCount: u32,
 	pub bifOffset: u32,
@@ -127,7 +155,9 @@ impl ResourceEntry
 #[cfg(test)]
 mod tests
 {
+	use std::path::Path;
     use super::*;
+	use crate::game::{FindInstallationPath, Games, KeyFileName};
 	
     #[test]
     fn LocatorTest()
@@ -144,4 +174,21 @@ mod tests
 		assert_eq!(tileExpected, instance.IndexTileset());
 		assert_eq!(bifExpected, instance.IndexBifEntry());
     }
+	
+	#[test]
+	fn ReadKeyTest()
+	{
+		let installPath = FindInstallationPath(Games::BaldursGate1).unwrap();
+		let keyFile = KeyFileName(&Games::BaldursGate1).unwrap();
+		let filePath = Path::new(installPath.as_str()).join(keyFile);
+		
+		let result = ReadKey(filePath.to_str().unwrap().to_string()).unwrap();
+		
+		assert_eq!("KEY ", result.signature);
+		assert_eq!("V1  ", result.version);
+		assert_eq!(159, result.bifEntryCount);
+		assert_eq!(16694, result.resourceEntryCount);
+		assert_eq!(24, result.bifOffset);
+		assert_eq!(4780, result.resourceOffset);
+	}
 }
