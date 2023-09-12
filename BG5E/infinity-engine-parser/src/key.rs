@@ -3,8 +3,11 @@
 
 use std::fs;
 use std::io;
+use std::io::Cursor;
+use std::path::Path;
+use byteorder::{LittleEndian, ReadBytesExt};
+use crate::{readBytes, readString};
 use crate::bits::ReadValue;
-use crate::{readString, readU32};
 
 const FileName: &str = "chitin.key";
 
@@ -15,28 +18,7 @@ const ResourceLocator_BifEntry: u32 = 12;
 const ResourceLocator_File: u32 = 14;
 const ResourceLocator_Tileset: u32 = 6;
 
-pub fn ReadKey(path: String) ->  io::Result<Key>
-{
-	let buffer = fs::read(path)?;
-	
-	// parse
-	let sig = readString!(buffer[0..4]);
-	let ver = readString!(buffer[4..8]);
-	let bec = readU32!(buffer[8..12]);
-	let rec = readU32!(buffer[12..16]);
-	let boffset = readU32!(buffer[16..20]);
-	let roffset = readU32!(buffer[20..24]);
-	
-	return Ok(Key {
-		signature: sig,
-		version: ver,
-		bifEntryCount: bec,
-		resourceEntryCount: rec,
-		bifOffset: boffset,
-		resourceOffset: roffset,
-		..Default::default()
-	});
-}
+//TODO: Update to be aware of system Endian-ness
 
 /**
 The fully parsed contents of a KEY V1 file.
@@ -50,6 +32,8 @@ byte ID (using the lowest 12 bits to identify a resource). There is generally
 only one key file with each game (chitin.key).
 
 ---
+
+### Header Data
 
 Offset | Size | Description
 --- | --- | ---
@@ -65,12 +49,90 @@ pub struct Key
 {
 	pub signature: String,
 	pub version: String,
-	pub bifEntryCount: u32,
-	pub resourceEntryCount: u32,
+	pub bifCount: u32,
+	pub resourceCount: u32,
 	pub bifOffset: u32,
 	pub resourceOffset: u32,
 	pub bifEntries: Vec<BifEntry>,
 	pub resourceEntries: Vec<ResourceEntry>,
+}
+
+impl Key
+{
+	
+	/**
+	Create a new instance of `Key` based on the data contained in `file`.
+	
+	---
+	
+	### Parameters
+	- **file** &Path - The fully qualified path to the file being read.
+	*/
+	pub fn fromFile(file: &Path) -> io::Result<Self>
+	{
+		let buffer = fs::read(file)?;
+		let mut cursor = Cursor::new(buffer);
+		
+		return Self::fromCursor(&mut cursor);
+	}
+	
+	/**
+	Create a new instance of `Key` based on the data contained in `cursor`.
+	
+	---
+	
+	### Parameters
+	- **cursor** &mut Cursor<Vec<u8>> - The cursor from which to read data.
+	*/
+	pub fn fromCursor(cursor: &mut Cursor<Vec<u8>>) -> io::Result<Self>
+	{
+		
+		let sigValue = readBytes!(cursor, 4);
+		let signature = readString!(sigValue);
+		let verValue = readBytes!(cursor, 4);
+		let version = readString!(verValue);
+		let bifCount = cursor.read_u32::<LittleEndian>()?;
+		let resourceCount = cursor.read_u32::<LittleEndian>()?;
+		let bifOffset = cursor.read_u32::<LittleEndian>()?;
+		let resourceOffset = cursor.read_u32::<LittleEndian>()?;
+		
+		cursor.set_position(bifOffset as u64);
+		let mut bifEntries = vec![];
+		for _ in 0..bifCount
+		{
+			let bifEntry = BifEntry::fromCursor(cursor)?;
+			bifEntries.push(bifEntry);
+		}
+		
+		cursor.set_position(resourceOffset as u64);
+		let mut resourceEntries = vec![];
+		for _ in 0..resourceCount
+		{
+			let resourceEntry = ResourceEntry::fromCursor(cursor)?;
+			resourceEntries.push(resourceEntry);
+		}
+		
+		for i in 0..bifEntries.len()
+		{
+			if let Some(mut entry) = bifEntries.get_mut(i)
+			{
+				cursor.set_position(entry.fileNameOffset as u64);
+				let nameBytes = readBytes!(cursor, entry.fileNameLength);
+				entry.fileName = readString!(nameBytes);
+			}
+		}
+		
+		return Ok(Self {
+			signature,
+			version,
+			bifCount,
+			resourceCount,
+			bifOffset,
+			resourceOffset,
+			bifEntries,
+			resourceEntries,
+		});
+	}
 }
 
 /**
@@ -94,14 +156,34 @@ Offset | Size | Description
 	- Bit G determines if the file is in the \cache directory
 	- Bit H determines if the file is in the \data directory
 */
-#[derive(Debug, Clone)]
+#[derive(Debug, Default, Clone)]
 pub struct BifEntry
 {
 	pub fileName: String,
 	pub fileLength: u32,
 	pub fileNameOffset: u32,
 	pub fileNameLength: u16,
-	pub locator: u16,
+	pub locatorBits: u16,
+}
+
+impl BifEntry
+{
+	pub fn fromCursor(cursor: &mut Cursor<Vec<u8>>) -> io::Result<Self>
+	{
+		let fileLength = cursor.read_u32::<LittleEndian>()?;
+		let fileNameOffset = cursor.read_u32::<LittleEndian>()?;
+		let fileNameLength = cursor.read_u16::<LittleEndian>()?;
+		let locatorBits = cursor.read_u16::<LittleEndian>()?;
+		
+		return Ok(Self
+		{
+			fileLength,
+			fileNameOffset,
+			fileNameLength,
+			locatorBits,
+			..Default::default()
+		});
+	}
 }
 
 /**
@@ -136,17 +218,32 @@ pub struct ResourceEntry
 
 impl ResourceEntry
 {
-	pub fn IndexFile(&self) -> u32
+	pub fn fromCursor(cursor: &mut Cursor<Vec<u8>>) -> io::Result<Self>
+	{
+		let nameValue = readBytes!(cursor, 8); // RESREF size is 8 bytes
+		let name = readString!(nameValue);
+		let r#type = cursor.read_u16::<LittleEndian>()?;
+		let locator = cursor.read_u32::<LittleEndian>()?;
+		
+		return Ok(Self
+		{
+			name,
+			r#type,
+			locator
+		});
+	}
+	
+	pub fn indexFile(&self) -> u32
 	{
 		return ReadValue(self.locator, ResourceLocator_File, 0);
 	}
 	
-	pub fn IndexTileset(&self) -> u32
+	pub fn indexTileset(&self) -> u32
 	{
 		return ReadValue(self.locator, ResourceLocator_Tileset, ResourceLocator_File);
 	}
 	
-	pub fn IndexBifEntry(&self) -> u32
+	pub fn indexBifEntry(&self) -> u32
 	{
 		return ReadValue(self.locator, ResourceLocator_BifEntry, ResourceLocator_File + ResourceLocator_Tileset);
 	}
@@ -170,25 +267,30 @@ mod tests
 		
 		let instance = ResourceEntry { name: String::default(), r#type: 0, locator };
 		
-		assert_eq!(fileExpected, instance.IndexFile());
-		assert_eq!(tileExpected, instance.IndexTileset());
-		assert_eq!(bifExpected, instance.IndexBifEntry());
+		assert_eq!(fileExpected, instance.indexFile());
+		assert_eq!(tileExpected, instance.indexTileset());
+		assert_eq!(bifExpected, instance.indexBifEntry());
     }
 	
 	#[test]
-	fn ReadKeyTest()
+	fn FromFileTest()
 	{
+		//TODO: Make this test not rely on actually reading a file from the file system.
 		let installPath = FindInstallationPath(Games::BaldursGate1).unwrap();
 		let keyFile = KeyFileName(&Games::BaldursGate1).unwrap();
 		let filePath = Path::new(installPath.as_str()).join(keyFile);
 		
-		let result = ReadKey(filePath.to_str().unwrap().to_string()).unwrap();
+		let result = Key::fromFile(filePath.as_path()).unwrap();
 		
-		assert_eq!("KEY ", result.signature);
-		assert_eq!("V1  ", result.version);
-		assert_eq!(159, result.bifEntryCount);
-		assert_eq!(16694, result.resourceEntryCount);
+		assert_eq!(Signature, result.signature);
+		assert_eq!(Version, result.version);
+		assert_eq!(159, result.bifCount);
+		assert_eq!(16694, result.resourceCount);
 		assert_eq!(24, result.bifOffset);
 		assert_eq!(4780, result.resourceOffset);
+		assert_ne!(0, result.bifEntries.len());
+		assert_ne!(String::default(), result.bifEntries[0].fileName);
+		assert_ne!(0, result.resourceEntries.len());
+		assert_ne!(String::default(), result.resourceEntries[0].name);
 	}
 }
