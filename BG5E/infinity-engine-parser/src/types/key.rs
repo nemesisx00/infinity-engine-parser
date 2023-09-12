@@ -1,14 +1,12 @@
 #![allow(non_snake_case, non_upper_case_globals)]
 #![cfg_attr(debug_assertions, allow(dead_code))]
 
-use std::fs;
 use std::io;
 use std::io::Cursor;
-use std::path::Path;
 use byteorder::{LittleEndian, ReadBytesExt};
 use crate::{readBytes, readString};
 use crate::bits::ReadValue;
-use crate::types::util::Identity;
+use crate::types::util::{Identity, InfinityEngineType};
 
 const FileName: &str = "chitin.key";
 
@@ -57,24 +55,9 @@ pub struct Key
 	pub resourceEntries: Vec<ResourceEntry>,
 }
 
-impl Key
+impl InfinityEngineType for Key
 {
-	
-	/**
-	Create a new instance of `Key` based on the data contained in `file`.
-	
-	---
-	
-	### Parameters
-	- **file** &Path - The fully qualified path to the file being read.
-	*/
-	pub fn fromFile(file: &Path) -> io::Result<Self>
-	{
-		let buffer = fs::read(file)?;
-		let mut cursor = Cursor::new(buffer);
-		
-		return Self::fromCursor(&mut cursor);
-	}
+	type Output = Key;
 	
 	/**
 	Create a new instance of `Key` based on the data contained in `cursor`.
@@ -84,7 +67,8 @@ impl Key
 	### Parameters
 	- **cursor** &mut Cursor<Vec<u8>> - The cursor from which to read data.
 	*/
-	pub fn fromCursor(cursor: &mut Cursor<Vec<u8>>) -> io::Result<Self>
+	fn fromCursor<T>(cursor: &mut Cursor<Vec<u8>>) -> io::Result<Self::Output>
+		where T: InfinityEngineType
 	{
 		let identity = Identity::fromCursor(cursor)?;
 		let bifCount = cursor.read_u32::<LittleEndian>()?;
@@ -113,7 +97,8 @@ impl Key
 			if let Some(mut entry) = bifEntries.get_mut(i)
 			{
 				cursor.set_position(entry.fileNameOffset as u64);
-				let nameBytes = readBytes!(cursor, entry.fileNameLength);
+				// The file name is a NUL terminated string, so just don't read the NUL.
+				let nameBytes = readBytes!(cursor, entry.fileNameLength - 1);
 				entry.fileName = readString!(nameBytes);
 			}
 		}
@@ -250,6 +235,7 @@ mod tests
 	use std::path::Path;
     use super::*;
 	use crate::platform::{FindInstallationPath, Games, KeyFileName};
+	use crate::types::util::ReadFromFile;
 	
     #[test]
     fn LocatorTest()
@@ -275,7 +261,7 @@ mod tests
 		let keyFile = KeyFileName(&Games::BaldursGate1).unwrap();
 		let filePath = Path::new(installPath.as_str()).join(keyFile);
 		
-		let result = Key::fromFile(filePath.as_path()).unwrap();
+		let result = ReadFromFile::<Key>(filePath.as_path()).unwrap();
 		
 		assert_eq!(Signature, result.identity.signature);
 		assert_eq!(Version, result.identity.version);
