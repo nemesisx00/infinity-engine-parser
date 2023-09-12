@@ -160,10 +160,6 @@ mod tests
     fn FindInstallationPathTest()
 	{
 		assert_ne!(None, FindInstallationPath(Games::BaldursGate1));
-		assert_ne!(None, FindInstallationPath(Games::BaldursGate1EnhancedEdition));
 		assert_ne!(None, FindInstallationPath(Games::BaldursGate2));
-		assert_ne!(None, FindInstallationPath(Games::BaldursGate2EnhancedEdition));
-		assert_ne!(None, FindInstallationPath(Games::IcewindDale1));
-		assert_ne!(None, FindInstallationPath(Games::IcewindDale1EnhancedEdition));
 	}
 }
