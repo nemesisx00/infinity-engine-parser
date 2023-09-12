@@ -254,7 +254,7 @@ mod tests
 {
 	use std::path::Path;
     use super::*;
-	use crate::game::{FindInstallationPath, Games, KeyFileName};
+	use crate::platform::{FindInstallationPath, Games, KeyFileName};
 	
     #[test]
     fn LocatorTest()

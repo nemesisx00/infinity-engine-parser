@@ -3,7 +3,7 @@
 
 use std::collections::HashMap;
 use registry::{Hive, RegKey, Security};
-use crate::game::global::*;
+use crate::platform::global::*;
 
 const DisplayName: &str = "DisplayName";
 const InstallLocation: &str = "InstallLocation";

@@ -4,7 +4,7 @@
 mod bits;
 mod bytes;
 mod key;
-mod game;
+mod platform;
 
 use ::safer_ffi::prelude::*;
 
