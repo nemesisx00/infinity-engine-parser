@@ -5,5 +5,6 @@ mod bif;
 mod key;
 mod util;
 
+pub use bif::Bif;
 pub use key::Key;
 pub use util::Identity;
