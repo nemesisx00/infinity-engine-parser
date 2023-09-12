@@ -18,7 +18,7 @@ pub enum Games
 	PlanescapeTormentEnhancedEdition,
 }
 
-pub fn GogGameIds(game: &Games) -> Option<u32>
+pub fn GogGameId(game: &Games) -> Option<u32>
 {
 	let map = HashMap::from([
 		( Games::BaldursGate1, 1207658886 ),
@@ -35,7 +35,7 @@ pub fn GogGameIds(game: &Games) -> Option<u32>
 	return map.get(game).cloned();
 }
 
-pub fn KeyFileNames(game: &Games) -> Option<String>
+pub fn KeyFileName(game: &Games) -> Option<String>
 {
 	let map = HashMap::from([
 		( Games::BaldursGate1, String::from("Chitin.key") ),
@@ -52,7 +52,7 @@ pub fn KeyFileNames(game: &Games) -> Option<String>
 	return map.get(game).cloned();
 }
 
-pub fn SteamAppIds(game: &Games) -> Option<u32>
+pub fn SteamAppId(game: &Games) -> Option<u32>
 {
 	let map = HashMap::from([
 		( Games::BaldursGate1, 24431 ),

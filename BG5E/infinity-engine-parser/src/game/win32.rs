@@ -50,9 +50,9 @@ fn SearchKeys() -> Vec<String>
 
 pub fn FindInstallationPath(game: Games) -> Option<String>
 {
-	let gogGameId = GogGameIds(&game);
+	let gogGameId = GogGameId(&game);
 	let oldGogKey = OldGogUninstallKeys(&game);
-	let steamAppId = SteamAppIds(&game);
+	let steamAppId = SteamAppId(&game);
 	let gameDisplayNames = GameDisplayNames(&game);
 	
 	let mut path = None;
