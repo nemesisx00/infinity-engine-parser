@@ -3,7 +3,7 @@
 
 use std::collections::HashMap;
 
-#[derive(Eq, Hash, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum Games
 {
 	None,
@@ -18,7 +18,7 @@ pub enum Games
 	PlanescapeTormentEnhancedEdition,
 }
 
-pub fn GogGameId(game: &Games) -> Option<u32>
+pub fn GogGameId(game: Games) -> Option<u32>
 {
 	let map = HashMap::from([
 		( Games::BaldursGate1, 1207658886 ),
@@ -32,10 +32,10 @@ pub fn GogGameId(game: &Games) -> Option<u32>
 		( Games::PlanescapeTormentEnhancedEdition, 1203613131 ),
 	]);
 	
-	return map.get(game).cloned();
+	return map.get(&game).cloned();
 }
 
-pub fn KeyFileName(game: &Games) -> Option<String>
+pub fn KeyFileName(game: Games) -> Option<String>
 {
 	let map = HashMap::from([
 		( Games::BaldursGate1, String::from("Chitin.key") ),
@@ -49,10 +49,10 @@ pub fn KeyFileName(game: &Games) -> Option<String>
 		( Games::PlanescapeTormentEnhancedEdition, String::from("chitin.key") ),
 	]);
 	
-	return map.get(game).cloned();
+	return map.get(&game).cloned();
 }
 
-pub fn SteamAppId(game: &Games) -> Option<u32>
+pub fn SteamAppId(game: Games) -> Option<u32>
 {
 	let map = HashMap::from([
 		( Games::BaldursGate1, 24431 ),
@@ -66,5 +66,5 @@ pub fn SteamAppId(game: &Games) -> Option<u32>
 		( Games::PlanescapeTormentEnhancedEdition, 466300 ),
 	]);
 	
-	return map.get(game).cloned();
+	return map.get(&game).cloned();
 }
