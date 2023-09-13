@@ -302,6 +302,13 @@ impl InfinityEngineType for Bif
 			tilesetEntries.push(entry);
 		}
 		
+		for mut entry in fileEntries.as_mut_slice()
+		{
+			cursor.set_position(entry.offset as u64);
+			let bytes = readBytes!(cursor, entry.size);
+			entry.data = bytes;
+		}
+		
 		return Ok(Self
 		{
 			identity,
@@ -331,7 +338,7 @@ Offset | Size | Description
 0x000c | 2 | Type of this resource
 0x000e | 2 | Unknown
 */
-#[derive(Debug, Clone)]
+#[derive(Debug, Default, Clone)]
 pub struct FileEntry
 {
 	pub locator: u32,
@@ -339,6 +346,7 @@ pub struct FileEntry
 	pub size: u32,
 	pub r#type: u16,
 	pub unknown: u16,
+	pub data: Vec<u8>,
 }
 
 const FileEntryIndex_MaskBits: u32 = 14;
@@ -365,12 +373,13 @@ impl FileEntry
 			size,
 			r#type,
 			unknown,
+			..Default::default()
 		});
 	}
 	
 	pub fn index(&self) -> u32
 	{
-		return ReadValue(self.locator, TilesetEntryIndex_MaskBits, TilesetEntryIndex_Shift);
+		return ReadValue(self.locator, FileEntryIndex_MaskBits, 0);
 	}
 }
 
