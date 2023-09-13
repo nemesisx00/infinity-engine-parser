@@ -4,6 +4,7 @@
 mod bits;
 mod bytes;
 mod platform;
+mod resource;
 mod types;
 
 use ::safer_ffi::prelude::*;
