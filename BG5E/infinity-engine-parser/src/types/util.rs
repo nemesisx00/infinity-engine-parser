@@ -50,7 +50,7 @@ Simple data structure containing only the Signature and Version of a file. Used
 to quickly identify the type of a file without attempting to parse the entire
 contents.
 */
-#[derive(Debug, Default, Clone)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct Identity
 {
 	pub signature: String,

@@ -38,7 +38,7 @@ Offset | Size | Description
 0x0010 + sizeof(filename) | 4 | Compressed data length
 0x0014 + sizeof(filename) | variable | Compressed data
 */
-#[derive(Debug, Default, Clone)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct Bifc
 {
 	pub identity: Identity,
@@ -123,7 +123,7 @@ Offset | Size | Description
 0x0004 | 4 | Version ('V1.0')
 0x0008 | 4 | Uncompressed BIF size
 */
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Bifcc
 {
 	pub identity: Identity,
@@ -193,7 +193,7 @@ Offset | Size | Description
 0x0004 | 4 | Compressed size
 0x0008 | variable | Compressed data
 */
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct BifccBlock
 {
 	pub decompressedSize: u32,
@@ -259,7 +259,7 @@ Offset | Size | Description
 0x000c | 4 | Count of tileset entries
 0x0010 | 4 | Offset (from start of file) to file entries
 */
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Bif
 {
 	pub identity: Identity,
@@ -338,7 +338,7 @@ Offset | Size | Description
 0x000c | 2 | Type of this resource
 0x000e | 2 | Unknown
 */
-#[derive(Debug, Default, Clone)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct FileEntry
 {
 	pub locator: u32,
@@ -401,7 +401,7 @@ Offset | Size | Description
 0x0010 | 2 | Type of this resource (always 0x3eb - TIS)
 0x0012 | 2 | Unknown
 */
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct TilesetEntry
 {
 	pub locator: u32,
@@ -554,7 +554,7 @@ mod tests
 	{
 		//TODO: Make this test not rely on actually reading a file from the file system.
 		let installPath = FindInstallationPath(Games::BaldursGate1).unwrap();
-		let keyFile = KeyFileName(&Games::BaldursGate1).unwrap();
+		let keyFile = KeyFileName(Games::BaldursGate1).unwrap();
 		let filePath = Path::new(installPath.as_str()).join(keyFile);
 		
 		let key = ReadFromFile::<Key>(filePath.as_path()).unwrap();

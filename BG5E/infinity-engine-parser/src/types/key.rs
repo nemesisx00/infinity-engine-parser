@@ -43,7 +43,7 @@ Offset | Size | Description
 0x0010 | 4 | Offset (from start of file) to BIF entries
 0x0014 | 4 | Offset (from start of file) to resource entries
 */
-#[derive(Debug, Default, Clone)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Key
 {
 	pub identity: Identity,
@@ -128,7 +128,7 @@ Offset | Size | Description
 	- Bit G determines if the file is in the \cache directory
 	- Bit H determines if the file is in the \data directory
 */
-#[derive(Debug, Default, Clone)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct BifEntry
 {
 	pub fileName: String,
@@ -180,7 +180,7 @@ this value is below:
 	- Bits 19-14: Tileset index
 	- Bits 13-0: Non-tileset file index (any 12 bit value, so long as it matches the value used in the BIF file)
 */
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ResourceEntry
 {
 	pub name: String,
@@ -250,7 +250,7 @@ mod tests
 	{
 		//TODO: Make this test not rely on actually reading a file from the file system.
 		let installPath = FindInstallationPath(Games::BaldursGate1).unwrap();
-		let keyFile = KeyFileName(&Games::BaldursGate1).unwrap();
+		let keyFile = KeyFileName(Games::BaldursGate1).unwrap();
 		let filePath = Path::new(installPath.as_str()).join(keyFile);
 		
 		let result = ReadFromFile::<Key>(filePath.as_path()).unwrap();
