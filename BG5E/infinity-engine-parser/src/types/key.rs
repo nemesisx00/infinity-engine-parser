@@ -269,9 +269,9 @@ mod tests
 		assert_eq!(16694, result.resourceCount);
 		assert_eq!(24, result.bifOffset);
 		assert_eq!(4780, result.resourceOffset);
-		assert_ne!(0, result.bifEntries.len());
+		assert_eq!(result.bifCount as usize, result.bifEntries.len());
 		assert_ne!(String::default(), result.bifEntries[0].fileName);
-		assert_ne!(0, result.resourceEntries.len());
+		assert_eq!(result.resourceCount as usize, result.resourceEntries.len());
 		assert_ne!(String::default(), result.resourceEntries[0].name);
 	}
 }
