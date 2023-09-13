@@ -278,7 +278,9 @@ impl BmpInfo
 #[cfg(test)]
 mod tests
 {
+	#[allow(unused_imports)]
 	use std::fs::File;
+	#[allow(unused_imports)]
 	use std::io::Write;
 	use std::path::Path;
     use super::*;
