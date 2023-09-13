@@ -59,14 +59,6 @@ impl InfinityEngineType for Key
 {
 	type Output = Key;
 	
-	/**
-	Create a new instance of `Key` based on the data contained in `cursor`.
-	
-	---
-	
-	### Parameters
-	- **cursor** &mut Cursor<Vec<u8>> - The cursor from which to read data.
-	*/
 	fn fromCursor<T>(cursor: &mut Cursor<Vec<u8>>) -> io::Result<Self::Output>
 		where T: InfinityEngineType
 	{
