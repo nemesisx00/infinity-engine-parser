@@ -4,7 +4,7 @@
 use std::fs;
 use std::io::Cursor;
 use std::path::Path;
-use anyhow::Result;
+use anyhow::{Result, Context};
 use byteorder::ReadBytesExt;
 use crate::{readBytes, readString};
 
@@ -38,7 +38,8 @@ Create a new instance of type `T` based on the data contained in `file`.
 pub fn ReadFromFile<T>(file: &Path) -> Result<T::Output>
 	where T: InfinityEngineType
 {
-	let buffer = fs::read(file)?;
+	let buffer = fs::read(file)
+		.context("Failed reading an Infinity Engine game file")?;
 	let mut cursor = Cursor::new(buffer);
 	
 	return T::fromCursor::<T>(&mut cursor);
