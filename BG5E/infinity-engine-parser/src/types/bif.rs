@@ -1,8 +1,8 @@
 #![allow(non_snake_case, non_upper_case_globals)]
 #![cfg_attr(debug_assertions, allow(dead_code))]
 
-use std::io;
 use std::io::Cursor;
+use anyhow::Result;
 use byteorder::{LittleEndian, ReadBytesExt};
 use crate::bits::ReadValue;
 use crate::types::util::{Identity, InfinityEngineType};
@@ -62,7 +62,7 @@ impl InfinityEngineType for Bif
 {
 	type Output = Bif;
 	
-	fn fromCursor<T>(cursor: &mut Cursor<Vec<u8>>) -> io::Result<Self::Output>
+	fn fromCursor<T>(cursor: &mut Cursor<Vec<u8>>) -> Result<Self::Output>
 		where T: InfinityEngineType
 	{
 		let identity = Identity::fromCursor(cursor)?;
@@ -127,7 +127,7 @@ const FileEntryIndex_MaskBits: u32 = 14;
 
 impl FileEntry
 {
-	pub fn fromCursor(cursor: &mut Cursor<Vec<u8>>) -> std::io::Result<Self>
+	pub fn fromCursor(cursor: &mut Cursor<Vec<u8>>) -> Result<Self>
 	{
 		let locator = cursor.read_u32::<LittleEndian>()?;
 		let offset = cursor.read_u32::<LittleEndian>()?;
@@ -185,7 +185,7 @@ const TilesetEntryIndex_Shift: u32 = 14;
 
 impl TilesetEntry
 {
-	pub fn fromCursor(cursor: &mut Cursor<Vec<u8>>) -> std::io::Result<Self>
+	pub fn fromCursor(cursor: &mut Cursor<Vec<u8>>) -> Result<Self>
 	{
 		let locator = cursor.read_u32::<LittleEndian>()?;
 		let offset = cursor.read_u32::<LittleEndian>()?;

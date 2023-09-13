@@ -1,8 +1,8 @@
 #![allow(non_snake_case, non_upper_case_globals)]
 #![cfg_attr(debug_assertions, allow(dead_code))]
 
-use std::io;
 use std::io::Cursor;
+use anyhow::Result;
 use byteorder::{LittleEndian, ReadBytesExt};
 use crate::{readBytes, readString};
 use crate::bits::ReadValue;
@@ -59,7 +59,7 @@ impl InfinityEngineType for Key
 {
 	type Output = Key;
 	
-	fn fromCursor<T>(cursor: &mut Cursor<Vec<u8>>) -> io::Result<Self::Output>
+	fn fromCursor<T>(cursor: &mut Cursor<Vec<u8>>) -> Result<Self::Output>
 		where T: InfinityEngineType
 	{
 		let identity = Identity::fromCursor(cursor)?;
@@ -140,7 +140,7 @@ pub struct BifEntry
 
 impl BifEntry
 {
-	pub fn fromCursor(cursor: &mut Cursor<Vec<u8>>) -> io::Result<Self>
+	pub fn fromCursor(cursor: &mut Cursor<Vec<u8>>) -> Result<Self>
 	{
 		let fileLength = cursor.read_u32::<LittleEndian>()?;
 		let fileNameOffset = cursor.read_u32::<LittleEndian>()?;
@@ -190,7 +190,7 @@ pub struct ResourceEntry
 
 impl ResourceEntry
 {
-	pub fn fromCursor(cursor: &mut Cursor<Vec<u8>>) -> io::Result<Self>
+	pub fn fromCursor(cursor: &mut Cursor<Vec<u8>>) -> Result<Self>
 	{
 		let nameValue = readBytes!(cursor, 8); // RESREF size is 8 bytes
 		let name = readString!(nameValue);
