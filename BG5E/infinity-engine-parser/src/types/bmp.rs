@@ -324,7 +324,7 @@ mod tests
 		
 		//Verify with eyes
 		/*
-		let outPath = Path::new("../../target/").join("Ajantis.bmp");
+		let outPath = Path::new("../../target").join("Ajantis.bmp");
 		let mut file = File::create(outPath.as_path()).expect("Output file couldn't be created");
 		let result = file.write_all(bmp.toBytes().as_slice());
 		assert!(result.is_ok());
