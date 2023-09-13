@@ -19,8 +19,8 @@ macro_rules! readBytes
 			let mut nameBytes = vec![];
 			for _ in 0..$length
 			{
-				let bite = $cursor.read_u8()?;
-				nameBytes.push(bite);
+				let byte = $cursor.read_u8()?;
+				nameBytes.push(byte);
 			}
 			nameBytes
 		}
