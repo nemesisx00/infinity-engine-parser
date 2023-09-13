@@ -139,7 +139,7 @@ impl InfinityEngineType for Bifcc
 		where T: InfinityEngineType
 	{
 		let identity = Identity::fromCursor(cursor)
-			.context("Failed to read BIFC Compressed Identity")?;
+			.context("Failed to read BIFC Compressed identity")?;
 		let uncompressedSize = cursor.read_u32::<LittleEndian>()
 			.context("Failed to read BIFC Compressed uncompressed size")?;
 		
