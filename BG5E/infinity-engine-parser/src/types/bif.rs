@@ -9,10 +9,12 @@ use crate::bits::ReadValue;
 use crate::{readBytes, readString};
 use crate::types::util::{Identity, InfinityEngineType};
 
-const BIFCV1_Signature: &str = "BIF ";
-const BIFCV1_Version: &str = "V1.0";
-const BIFFV1_Signature: &str = "BIFF";
-const BIFFV1_Version: &str = "V1  ";
+const BIFC_Signature: &str = "BIF ";
+const BIFC_Version: &str = "V1.0";
+const BIFCC_Signature: &str = "BIFC";
+const BIFCC_Version: &str = "V1.0";
+const BIFF_Signature: &str = "BIFF";
+const BIFF_Version: &str = "V1  ";
 
 /**
 The parsed metadata and decompressed data of a BIFC V1 file.
@@ -23,6 +25,8 @@ This file format is comprised of a header section, containing metadata about
 the BIF file, and the compressed data of a standard BIFF V1 file.
 
 ---
+
+### Header Data
 
 Offset | Size | Description
 ---|---|---
@@ -101,6 +105,124 @@ impl Bifc
 // --------------------------------------------------
 
 /**
+The parsed metadata and decompressed data of a BIFC V1.0 (compressed) file.
+
+See https://gibberlings3.github.io/iesdp/file_formats/ie_formats/bif_v1.htm
+
+This file format is comprised of a header section, containing metadata about
+the BIF file, and a set of blocks containing compressed data which, when
+decompressed and combined, amount to a BIFF V1 file.
+
+---
+
+### Header Data
+
+Offset | Size | Description
+---|---|---
+0x0000 | 4 | Signature ('BIFC')
+0x0004 | 4 | Version ('V1.0')
+0x0008 | 4 | Uncompressed BIF size
+*/
+#[derive(Debug, Clone)]
+pub struct Bifcc
+{
+	pub identity: Identity,
+	pub uncompressedSize: u32,
+	pub blocks: Vec<BifccBlock>,
+}
+
+impl InfinityEngineType for Bifcc
+{
+	type Output = Bifcc;
+	
+	fn fromCursor<T>(cursor: &mut Cursor<Vec<u8>>) -> Result<Self::Output>
+		where T: InfinityEngineType
+	{
+		let identity = Identity::fromCursor(cursor)
+			.context("Failed to read BIFC Compressed Identity")?;
+		let uncompressedSize = cursor.read_u32::<LittleEndian>()
+			.context("Failed to read BIFC Compressed uncompressed size")?;
+		
+		let mut blocks = vec![];
+		while cursor.position() < cursor.get_ref().len() as u64
+		{
+			let block = BifccBlock::fromCursor(cursor)
+				.context("Failed to read BIFC Compressed Block")?;
+			blocks.push(block);
+		}
+		
+		return Ok(Self{
+			identity,
+			uncompressedSize,
+			blocks,
+		});
+	}
+}
+
+impl Bifcc
+{
+	pub fn toBif(&self) -> Result<Bif>
+	{
+		let mut decompressedData = vec![];
+		
+		for block in self.blocks.clone()
+		{
+			let mut data = vec![];
+			let mut decoder = ZlibDecoder::new(block.compressedData.as_slice());
+			decoder.read_to_end(&mut data)
+				.context("Failed to decode BIFC Compressed Block compressed data")?;
+			
+			decompressedData.append(&mut data);
+		}
+		
+		let mut bifCursor = Cursor::new(decompressedData);
+		return Bif::fromCursor::<Bif>(&mut bifCursor);
+	}
+}
+
+/**
+Metadata defining the contents of a BIFC V1.0 (compressed) compressed data block.
+
+See https://gibberlings3.github.io/iesdp/file_formats/ie_formats/bif_v1.htm
+
+---
+
+Offset | Size | Description
+---|---|---
+0x0000 | 4 | Decompressed size
+0x0004 | 4 | Compressed size
+0x0008 | variable | Compressed data
+*/
+#[derive(Debug, Clone)]
+pub struct BifccBlock
+{
+	pub decompressedSize: u32,
+	pub compressedSize: u32,
+	pub compressedData: Vec<u8>,
+}
+
+impl BifccBlock
+{
+	pub fn fromCursor(cursor: &mut Cursor<Vec<u8>>) -> Result<Self>
+	{
+		let decompressedSize = cursor.read_u32::<LittleEndian>()
+			.context("Failed to read BIFC Compressed Block decompressed size")?;
+		let compressedSize = cursor.read_u32::<LittleEndian>()
+			.context("Failed to read BIFC Compressed Block compressed size")?;
+		let compressedData = readBytes!(cursor, compressedSize);
+		
+		return Ok(Self
+		{
+			decompressedSize,
+			compressedSize,
+			compressedData,
+		});
+	}
+}
+
+// --------------------------------------------------
+
+/**
 The fully parsed metadata contents of a BIFF V1 file.
 
 See https://gibberlings3.github.io/iesdp/file_formats/ie_formats/bif_v1.htm
@@ -137,7 +259,7 @@ Offset | Size | Description
 0x000c | 4 | Count of tileset entries
 0x0010 | 4 | Offset (from start of file) to file entries
 */
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Clone)]
 pub struct Bif
 {
 	pub identity: Identity,
@@ -209,7 +331,7 @@ Offset | Size | Description
 0x000c | 2 | Type of this resource
 0x000e | 2 | Unknown
 */
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Clone)]
 pub struct FileEntry
 {
 	pub locator: u32,
@@ -270,7 +392,7 @@ Offset | Size | Description
 0x0010 | 2 | Type of this resource (always 0x3eb - TIS)
 0x0012 | 2 | Unknown
 */
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Clone)]
 pub struct TilesetEntry
 {
 	pub locator: u32,
@@ -434,8 +556,8 @@ mod tests
 		let bifPath = Path::new(installPath.as_str()).join(bifFileName);
 		let result = ReadFromFile::<Bif>(bifPath.as_path()).unwrap();
 		
-		assert_eq!(BIFFV1_Signature, result.identity.signature);
-		assert_eq!(BIFFV1_Version, result.identity.version);
+		assert_eq!(BIFF_Signature, result.identity.signature);
+		assert_eq!(BIFF_Version, result.identity.version);
 		assert_eq!(181, result.fileCount);
 		assert_eq!(0, result.tilesetCount);
 		assert_eq!(20, result.offset);
@@ -451,8 +573,8 @@ mod tests
 		let filePath = Path::new(installPath.as_str()).join(fileName);
 		
 		let bifc = ReadFromFile::<Bifc>(filePath.as_path()).unwrap();
-		assert_eq!(BIFCV1_Signature, bifc.identity.signature);
-		assert_eq!(BIFCV1_Version, bifc.identity.version);
+		assert_eq!(BIFC_Signature, bifc.identity.signature);
+		assert_eq!(BIFC_Version, bifc.identity.version);
 		assert_eq!(11, bifc.fileNameLength);
 		// The NUL is dropped when reading
 		assert_eq!((bifc.fileNameLength - 1) as usize, bifc.fileName.len());
@@ -461,8 +583,29 @@ mod tests
 		assert_eq!(bifc.compressedLength as usize, bifc.compressedData.len());
 		
 		let bif = bifc.toBif().unwrap();
-		assert_eq!(BIFFV1_Signature, bif.identity.signature);
-		assert_eq!(BIFFV1_Version, bif.identity.version);
+		assert_eq!(BIFF_Signature, bif.identity.signature);
+		assert_eq!(BIFF_Version, bif.identity.version);
+		assert_eq!(20, bif.offset);
+		assert_eq!(bif.fileCount as usize, bif.fileEntries.len());
+		assert_eq!(bif.tilesetCount as usize, bif.tilesetEntries.len());
+	}
+	
+	#[test]
+	fn BifccTest()
+	{
+		let fileName = "data/Data/AREA000A.bif";
+		let installPath = FindInstallationPath(Games::BaldursGate2).unwrap();
+		let filePath = Path::new(installPath.as_str()).join(fileName);
+		
+		let bifcc = ReadFromFile::<Bifcc>(filePath.as_path()).unwrap();
+		assert_eq!(BIFCC_Signature, bifcc.identity.signature);
+		assert_eq!(BIFCC_Version, bifcc.identity.version);
+		assert_eq!(27729850, bifcc.uncompressedSize);
+		assert_ne!(0 as usize, bifcc.blocks.len());
+		
+		let bif = bifcc.toBif().unwrap();
+		assert_eq!(BIFF_Signature, bif.identity.signature);
+		assert_eq!(BIFF_Version, bif.identity.version);
 		assert_eq!(20, bif.offset);
 		assert_eq!(bif.fileCount as usize, bif.fileEntries.len());
 		assert_eq!(bif.tilesetCount as usize, bif.tilesetEntries.len());
