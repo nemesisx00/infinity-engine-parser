@@ -1,14 +1,104 @@
 #![allow(non_snake_case, non_upper_case_globals)]
 #![cfg_attr(debug_assertions, allow(dead_code))]
 
-use std::io::Cursor;
-use anyhow::Result;
+use std::io::{Cursor, Read};
+use anyhow::{Result, Context};
 use byteorder::{LittleEndian, ReadBytesExt};
+use flate2::read::ZlibDecoder;
 use crate::bits::ReadValue;
+use crate::{readBytes, readString};
 use crate::types::util::{Identity, InfinityEngineType};
 
-const Signature: &str = "BIFF";
-const Version: &str = "V1  ";
+const BIFCV1_Signature: &str = "BIF ";
+const BIFCV1_Version: &str = "V1.0";
+const BIFFV1_Signature: &str = "BIFF";
+const BIFFV1_Version: &str = "V1  ";
+
+/**
+The parsed metadata and decompressed data of a BIFC V1 file.
+
+See https://gibberlings3.github.io/iesdp/file_formats/ie_formats/bif_v1.htm
+
+This file format is comprised of a header section, containing metadata about
+the BIF file, and the compressed data of a standard BIFF V1 file.
+
+---
+
+Offset | Size | Description
+---|---|---
+0x0000 | 4 | Signature ('BIF ')
+0x0004 | 4 | Version ('V1.0')
+0x0008 | 4 | Length of filename
+0x000c | variable | Filename (length specified by previous field)
+0x000c + sizeof(filename) | 4 | Uncompressed data length
+0x0010 + sizeof(filename) | 4 | Compressed data length
+0x0014 + sizeof(filename) | variable | Compressed data
+*/
+#[derive(Debug, Default, Clone)]
+pub struct Bifc
+{
+	pub identity: Identity,
+	pub fileNameLength: u32,
+	pub fileName: String,
+	pub uncompressedLength: u32,
+	pub compressedLength: u32,
+	pub compressedData: Vec<u8>,
+}
+
+impl InfinityEngineType for Bifc
+{
+	type Output = Bifc;
+	
+	fn fromCursor<T>(cursor: &mut Cursor<Vec<u8>>) -> Result<Self::Output>
+		where T: InfinityEngineType
+	{
+		let identity = Identity::fromCursor(cursor)
+			.context("Failed to read BIFC Identity")?;
+		let fileNameLength = cursor.read_u32::<LittleEndian>()
+			.context("Failed to read BIFC file name length")?;
+		
+		let fileNameBytes = readBytes!(cursor, fileNameLength - 1);
+		let fileName = readString!(fileNameBytes);
+		
+		//Account for not reading the NUL in the file name
+		cursor.set_position(cursor.position() + 1);
+		let uncompressedLength = cursor.read_u32::<LittleEndian>()
+			.context("Failed to read BIFC uncompressed length")?;
+		let compressedLength = cursor.read_u32::<LittleEndian>()
+			.context("Failed to read BIFC compressed length")?;
+		let compressedData = readBytes!(cursor, compressedLength);
+		
+		return Ok(Self
+		{
+			identity,
+			fileNameLength,
+			fileName,
+			uncompressedLength,
+			compressedLength,
+			compressedData,
+		});
+	}
+}
+
+impl Bifc
+{
+	/**
+	Decompress and parse this `Bifc`'s compressed data into a fully parsed `Bif`
+	instance.
+	*/
+	pub fn toBif(&self) -> Result<Bif>
+	{
+		let mut decompressedData = vec![];
+		let mut decoder = ZlibDecoder::new(self.compressedData.as_slice());
+		decoder.read_to_end(&mut decompressedData)
+			.context("Failed to decode BIFC compressed data")?;
+		
+		let mut bifCursor = Cursor::new(decompressedData);
+		return Bif::fromCursor::<Bif>(&mut bifCursor);
+	}
+}
+
+// --------------------------------------------------
 
 /**
 The fully parsed metadata contents of a BIFF V1 file.
@@ -65,22 +155,28 @@ impl InfinityEngineType for Bif
 	fn fromCursor<T>(cursor: &mut Cursor<Vec<u8>>) -> Result<Self::Output>
 		where T: InfinityEngineType
 	{
-		let identity = Identity::fromCursor(cursor)?;
-		let fileCount = cursor.read_u32::<LittleEndian>()?;
-		let tilesetCount = cursor.read_u32::<LittleEndian>()?;
-		let offset = cursor.read_u32::<LittleEndian>()?;
+		let identity = Identity::fromCursor(cursor)
+			.context("Failed to read BIFF identity")?;
+		let fileCount = cursor.read_u32::<LittleEndian>()
+			.context("Failed to read BIFF file count")?;
+		let tilesetCount = cursor.read_u32::<LittleEndian>()
+			.context("Failed to read BIFF tileset count")?;
+		let offset = cursor.read_u32::<LittleEndian>()
+			.context("Failed to read BIFF offset")?;
 		
 		let mut fileEntries = vec![];
-		for _ in 0..fileCount
+		for i in 0..fileCount
 		{
-			let entry = FileEntry::fromCursor(cursor)?;
+			let entry = FileEntry::fromCursor(cursor)
+				.context(format!("Failed to parse file entry #{}", i))?;
 			fileEntries.push(entry);
 		}
 		
 		let mut tilesetEntries = vec![];
-		for _ in 0..tilesetCount
+		for i in 0..tilesetCount
 		{
-			let entry = TilesetEntry::fromCursor(cursor)?;
+			let entry = TilesetEntry::fromCursor(cursor)
+				.context(format!("Failed to parse tileset entry #{}", i))?;
 			tilesetEntries.push(entry);
 		}
 		
@@ -129,11 +225,16 @@ impl FileEntry
 {
 	pub fn fromCursor(cursor: &mut Cursor<Vec<u8>>) -> Result<Self>
 	{
-		let locator = cursor.read_u32::<LittleEndian>()?;
-		let offset = cursor.read_u32::<LittleEndian>()?;
-		let size = cursor.read_u32::<LittleEndian>()?;
-		let r#type = cursor.read_u16::<LittleEndian>()?;
-		let unknown = cursor.read_u16::<LittleEndian>()?;
+		let locator = cursor.read_u32::<LittleEndian>()
+			.context("Failed to read BIFF FileEntry locator")?;
+		let offset = cursor.read_u32::<LittleEndian>()
+			.context("Failed to read BIFF FileEntry offset")?;
+		let size = cursor.read_u32::<LittleEndian>()
+			.context("Failed to read BIFF FileEntry size")?;
+		let r#type = cursor.read_u16::<LittleEndian>()
+			.context("Failed to read BIFF FileEntry type")?;
+		let unknown = cursor.read_u16::<LittleEndian>()
+			.context("Failed to read BIFF FileEntry unknown")?;
 		
 		return Ok(Self
 		{
@@ -187,12 +288,18 @@ impl TilesetEntry
 {
 	pub fn fromCursor(cursor: &mut Cursor<Vec<u8>>) -> Result<Self>
 	{
-		let locator = cursor.read_u32::<LittleEndian>()?;
-		let offset = cursor.read_u32::<LittleEndian>()?;
-		let tileCount = cursor.read_u32::<LittleEndian>()?;
-		let tileSize = cursor.read_u32::<LittleEndian>()?;
-		let r#type = cursor.read_u16::<LittleEndian>()?;
-		let unknown = cursor.read_u16::<LittleEndian>()?;
+		let locator = cursor.read_u32::<LittleEndian>()
+			.context("Failed to read BIFF TilesetEntry locator")?;
+		let offset = cursor.read_u32::<LittleEndian>()
+			.context("Failed to read BIFF TilesetEntry offset")?;
+		let tileCount = cursor.read_u32::<LittleEndian>()
+			.context("Failed to read BIFF TilesetEntry tile count")?;
+		let tileSize = cursor.read_u32::<LittleEndian>()
+			.context("Failed to read BIFF TilesetEntry tile size")?;
+		let r#type = cursor.read_u16::<LittleEndian>()
+			.context("Failed to read BIFF TilesetEntry type")?;
+		let unknown = cursor.read_u16::<LittleEndian>()
+			.context("Failed to read BIFF TilesetEntry unknown")?;
 		
 		return Ok(Self
 		{
@@ -327,12 +434,37 @@ mod tests
 		let bifPath = Path::new(installPath.as_str()).join(bifFileName);
 		let result = ReadFromFile::<Bif>(bifPath.as_path()).unwrap();
 		
-		assert_eq!(Signature, result.identity.signature);
-		assert_eq!(Version, result.identity.version);
+		assert_eq!(BIFFV1_Signature, result.identity.signature);
+		assert_eq!(BIFFV1_Version, result.identity.version);
 		assert_eq!(181, result.fileCount);
 		assert_eq!(0, result.tilesetCount);
 		assert_eq!(20, result.offset);
 		assert_eq!(result.fileCount as usize, result.fileEntries.len());
 		assert_eq!(result.tilesetCount as usize, result.tilesetEntries.len());
+	}
+	
+	#[test]
+	fn BifcTest()
+	{
+		let fileName = "CD2/Data/AR100A.cbf";
+		let installPath = FindInstallationPath(Games::IcewindDale1).unwrap();
+		let filePath = Path::new(installPath.as_str()).join(fileName);
+		
+		let bifc = ReadFromFile::<Bifc>(filePath.as_path()).unwrap();
+		assert_eq!(BIFCV1_Signature, bifc.identity.signature);
+		assert_eq!(BIFCV1_Version, bifc.identity.version);
+		assert_eq!(11, bifc.fileNameLength);
+		// The NUL is dropped when reading
+		assert_eq!((bifc.fileNameLength - 1) as usize, bifc.fileName.len());
+		assert_eq!(6613876, bifc.uncompressedLength);
+		assert_eq!(3322859, bifc.compressedLength);
+		assert_eq!(bifc.compressedLength as usize, bifc.compressedData.len());
+		
+		let bif = bifc.toBif().unwrap();
+		assert_eq!(BIFFV1_Signature, bif.identity.signature);
+		assert_eq!(BIFFV1_Version, bif.identity.version);
+		assert_eq!(20, bif.offset);
+		assert_eq!(bif.fileCount as usize, bif.fileEntries.len());
+		assert_eq!(bif.tilesetCount as usize, bif.tilesetEntries.len());
 	}
 }
