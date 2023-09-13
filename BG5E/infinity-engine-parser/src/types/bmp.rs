@@ -42,7 +42,7 @@ Offset | Name | Size | Description
 FileHeader size | InfoHeader | 40 | Windows Structure: BITMAPINFOHEADER
 FileHeader size + InfoHeader size | RasterData | variable | The pixel data
 */
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Bmp
 {
 	pub file: BmpFile,
@@ -143,7 +143,7 @@ Offset | Name | Size | Description
 0x06 | Reserved | 4 | Reserved space - unused
 0x0a | DataOffset | 4 | File offset to Raster Data
 */
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct BmpFile
 {
 	pub r#type: String,
@@ -209,7 +209,7 @@ Offset | Name | Size | Description
 0x32 | ColorsImportant | 4 | Number of important colors (0 = all)
 0x36 | ColorTable | variable | 4 bytes * ColorsUsed value
 */
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct BmpInfo
 {
 	pub size: u32,
@@ -293,74 +293,65 @@ mod tests
 	use std::fs::File;
 	#[allow(unused_imports)]
 	use std::io::Write;
+	#[allow(unused_imports)]
 	use std::path::Path;
 	#[allow(unused_imports)]
 	use image::io::Reader as ImageReader;
     use super::*;
-	use crate::platform::{FindInstallationPath, Games, KeyFileName};
-	use crate::types::{Bif, Key};
-	use crate::types::util::ReadFromFile;
+	use crate::platform::Games;
+	use crate::resource::ResourceManager;
 	
 	#[test]
 	fn BmpTest()
 	{
-		//let resourceName = "AR0002SR"; //4 bit
-		//let resourceName = "AJANTISS"; //8 bit
-		let resourceName = "AJANTISG"; //24 bit
 		//TODO: Make this test not rely on actually reading a file from the file system.
-		let installPath = FindInstallationPath(Games::BaldursGate1).unwrap();
-		let keyFile = KeyFileName(&Games::BaldursGate1).unwrap();
-		let filePath = Path::new(installPath.as_str()).join(keyFile);
 		
-		let key = ReadFromFile::<Key>(filePath.as_path()).unwrap();
-		let resourceEntry = key.resourceEntries
-			.iter()
-			.find(|entry| entry.name.eq(resourceName))
-			.unwrap();
+		let resourceNames = vec![
+			"AR0002SR", //4 bit
+			"AJANTISS", //8 bit
+			"AJANTISG", //24 bit
+		];
 		
-		let bifEntry = &key.bifEntries[resourceEntry.indexBifEntry() as usize];
-		let bifFileName = bifEntry.fileName.clone();
-		let bifPath = Path::new(installPath.as_str()).join(bifFileName);
-		let bif = ReadFromFile::<Bif>(bifPath.as_path()).unwrap();
-		
-		let fileEntry = bif.fileEntries
-			.iter()
-			.find(|entry| entry.index() == resourceEntry.indexFile())
-			.unwrap();
-		
-		let mut cursor = Cursor::new(fileEntry.data.clone());
-		let bmp = Bmp::fromCursor::<Bmp>(&mut cursor).unwrap();
-		
-		assert_eq!(Type, bmp.file.r#type);
-		assert_eq!(14, bmp.file.toBytes().len());
-		assert_eq!(bmp.info.size as usize, bmp.info.toBytes().len());
-		/*
-		assert_eq!(BPP_4bit, bmp.info.bitsPerPixel);
-		assert_eq!(56, bmp.info.width);
-		assert_eq!(54, bmp.info.height);
-		assert_eq!((BPP_4bit * BPP_4bit) as usize, bmp.colors.len());
-		// */
-		/*
-		assert_eq!(BPP_8bit, bmp.info.bitsPerPixel);
-		assert_eq!(38, bmp.info.width);
-		assert_eq!(60, bmp.info.height);
-		assert_eq!((BPP_8bit * BPP_8bit * 4) as usize, bmp.colors.len());
-		// */
-		//*
-		assert_eq!(210, bmp.info.width);
-		assert_eq!(330, bmp.info.height);
-		assert_eq!(BPP_24bit, bmp.info.bitsPerPixel);
-		assert_eq!(0, bmp.colors.len());
-		// */
-		
-		//Verify with eyes
-		/*
-		let outPath = Path::new("../../target").join(format!("testoutput_{}.png", resourceName));
-		let mut file = File::create(outPath.as_path())
-			.expect("Output file couldn't be created");
-		let bytes = bmp.toImageBytes(Some(ImageOutputFormat::Png)).unwrap();
-		let result = file.write_all(&bytes);
-		assert!(result.is_ok());
-		// */
+		let mut resourceManager = ResourceManager::default();
+		for name in resourceNames.clone()
+		{
+			let bmp = resourceManager.loadResource::<Bmp>(Games::BaldursGate1, name.to_owned()).unwrap();
+			
+			assert_eq!(Type, bmp.file.r#type);
+			assert_eq!(14, bmp.file.toBytes().len());
+			assert_eq!(bmp.info.size as usize, bmp.info.toBytes().len());
+			
+			if name.contains(resourceNames[0])
+			{
+				assert_eq!(BPP_4bit, bmp.info.bitsPerPixel);
+				assert_eq!(56, bmp.info.width);
+				assert_eq!(54, bmp.info.height);
+				assert_eq!((BPP_4bit * BPP_4bit) as usize, bmp.colors.len());
+			}
+			else if name.contains(resourceNames[1])
+			{
+				assert_eq!(BPP_8bit, bmp.info.bitsPerPixel);
+				assert_eq!(38, bmp.info.width);
+				assert_eq!(60, bmp.info.height);
+				assert_eq!((BPP_8bit * BPP_8bit * 4) as usize, bmp.colors.len());
+			}
+			else if name.contains(resourceNames[2])
+			{
+				assert_eq!(210, bmp.info.width);
+				assert_eq!(330, bmp.info.height);
+				assert_eq!(BPP_24bit, bmp.info.bitsPerPixel);
+				assert_eq!(0, bmp.colors.len());
+			}
+			
+			//Verify with eyes
+			/*
+			let outPath = Path::new("../../target").join(format!("testoutput_{}.png", resourceName));
+			let mut file = File::create(outPath.as_path())
+				.expect("Output file couldn't be created");
+			let bytes = bmp.toImageBytes(Some(ImageOutputFormat::Png)).unwrap();
+			let result = file.write_all(&bytes);
+			assert!(result.is_ok());
+			// */
+		}
 	}
 }
