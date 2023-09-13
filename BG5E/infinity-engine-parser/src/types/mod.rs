@@ -9,4 +9,4 @@ mod util;
 pub use bif::Bif;
 pub use bmp::Bmp;
 pub use key::Key;
-pub use util::Identity;
+pub use util::{Identity, InfinityEngineType, ReadFromFile};
