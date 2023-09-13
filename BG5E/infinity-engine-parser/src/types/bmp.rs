@@ -4,6 +4,8 @@
 use std::io::{Cursor, Read};
 use anyhow::{Result, Context};
 use byteorder::{LittleEndian, ReadBytesExt};
+use image::{ImageFormat, ImageOutputFormat};
+use image::io::Reader as ImageReader;
 use crate::{readBytes, readString};
 use crate::types::util::InfinityEngineType;
 const Type: &str = "BM";
@@ -46,7 +48,7 @@ pub struct Bmp
 	pub file: BmpFile,
 	pub info: BmpInfo,
 	pub colors: Vec<u32>,
-	pub decoded: Vec<u8>,
+	pub encoded: Vec<u8>,
 }
 
 impl InfinityEngineType for Bmp
@@ -83,16 +85,12 @@ impl InfinityEngineType for Bmp
 		cursor.read_to_end(&mut encoded)
 			.context("Failed to read BMP encoded pixel data")?;
 		
-		let mut decoded = vec![];
-		//This only works for 24-bit but good enough for a test
-		decoded.append(&mut encoded);
-		
 		return Ok(Self
 		{
 			file,
 			info,
 			colors,
-			decoded,
+			encoded,
 		});
 	}
 }
@@ -110,9 +108,22 @@ impl Bmp
 			bytes.append(color.to_le_bytes().to_vec().as_mut());
 		}
 		
-		bytes.append(self.decoded.to_vec().as_mut());
+		bytes.append(self.encoded.to_vec().as_mut());
 		
 		return bytes;
+	}
+	
+	pub fn toImageBytes(&self, format: Option<ImageOutputFormat>) -> Result<Vec<u8>>
+	{
+		let reader = ImageReader::with_format(Cursor::new(self.toBytes()), ImageFormat::Bmp)
+			.decode()?;
+		
+		let mut data = vec![];
+		let mut cursor = Cursor::new(&mut data);
+		reader.write_to(&mut cursor, match format { None => ImageOutputFormat::Png, Some(fmt) => fmt })
+			.context("")?;
+		
+		return Ok(data);
 	}
 }
 
@@ -283,6 +294,8 @@ mod tests
 	#[allow(unused_imports)]
 	use std::io::Write;
 	use std::path::Path;
+	#[allow(unused_imports)]
+	use image::io::Reader as ImageReader;
     use super::*;
 	use crate::platform::{FindInstallationPath, Games, KeyFileName};
 	use crate::types::{Bif, Key};
@@ -291,7 +304,9 @@ mod tests
 	#[test]
 	fn BmpTest()
 	{
-		let resourceName = "AJANTISG";
+		//let resourceName = "AR0002SR"; //4 bit
+		//let resourceName = "AJANTISS"; //8 bit
+		let resourceName = "AJANTISG"; //24 bit
 		//TODO: Make this test not rely on actually reading a file from the file system.
 		let installPath = FindInstallationPath(Games::BaldursGate1).unwrap();
 		let keyFile = KeyFileName(&Games::BaldursGate1).unwrap();
@@ -319,16 +334,32 @@ mod tests
 		assert_eq!(Type, bmp.file.r#type);
 		assert_eq!(14, bmp.file.toBytes().len());
 		assert_eq!(bmp.info.size as usize, bmp.info.toBytes().len());
+		/*
+		assert_eq!(BPP_4bit, bmp.info.bitsPerPixel);
+		assert_eq!(56, bmp.info.width);
+		assert_eq!(54, bmp.info.height);
+		assert_eq!((BPP_4bit * BPP_4bit) as usize, bmp.colors.len());
+		// */
+		/*
+		assert_eq!(BPP_8bit, bmp.info.bitsPerPixel);
+		assert_eq!(38, bmp.info.width);
+		assert_eq!(60, bmp.info.height);
+		assert_eq!((BPP_8bit * BPP_8bit * 4) as usize, bmp.colors.len());
+		// */
+		//*
 		assert_eq!(210, bmp.info.width);
 		assert_eq!(330, bmp.info.height);
 		assert_eq!(BPP_24bit, bmp.info.bitsPerPixel);
 		assert_eq!(0, bmp.colors.len());
+		// */
 		
 		//Verify with eyes
 		/*
-		let outPath = Path::new("../../target").join("Ajantis.bmp");
-		let mut file = File::create(outPath.as_path()).expect("Output file couldn't be created");
-		let result = file.write_all(bmp.toBytes().as_slice());
+		let outPath = Path::new("../../target").join(format!("testoutput_{}.png", resourceName));
+		let mut file = File::create(outPath.as_path())
+			.expect("Output file couldn't be created");
+		let bytes = bmp.toImageBytes(Some(ImageOutputFormat::Png)).unwrap();
+		let result = file.write_all(&bytes);
 		assert!(result.is_ok());
 		// */
 	}
