@@ -278,6 +278,8 @@ impl BmpInfo
 #[cfg(test)]
 mod tests
 {
+	use std::fs::File;
+	use std::io::Write;
 	use std::path::Path;
     use super::*;
 	use crate::platform::{FindInstallationPath, Games, KeyFileName};
@@ -319,5 +321,13 @@ mod tests
 		assert_eq!(330, bmp.info.height);
 		assert_eq!(BPP_24bit, bmp.info.bitsPerPixel);
 		assert_eq!(0, bmp.colors.len());
+		
+		//Verify with eyes
+		/*
+		let outPath = Path::new("../../target/").join("Ajantis.bmp");
+		let mut file = File::create(outPath.as_path()).expect("Output file couldn't be created");
+		let result = file.write_all(bmp.toBytes().as_slice());
+		assert!(result.is_ok());
+		// */
 	}
 }
