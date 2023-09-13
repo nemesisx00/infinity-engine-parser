@@ -1,13 +1,37 @@
 #![allow(non_snake_case, non_upper_case_globals)]
 #![cfg_attr(debug_assertions, allow(dead_code))]
 
-use std::{collections::HashMap, io::Cursor, path::Path};
+use std::{
+	collections::HashMap,
+	io::Cursor,
+	path::Path
+};
 
 use crate::{
 	platform::{Games, FindInstallationPath, KeyFileName},
 	types::{Bif, InfinityEngineType, Key, ReadFromFile}
 };
 
+/**
+A convenient interface for retrieving resources from Infinity Engine game files.
+
+Caches the result of any file system access, namely loading KEY and BIF files.
+These cached instances are reused when the same resource is requested subsequent
+times. They can also be freed manually.
+
+# Usage
+
+The `ResourceManager` will generally always return an `Option<T>` where `T`
+implements `InfinityEngineType` regardless of which load* function is called.
+On some functions, such as `loadFileResource`, you must specify a type when
+calling.
+
+```
+use crate::{platform::Games, resources::ResourceManager, types::Bmp};
+
+let bmp: Option<Bmp> = resourceManager.loadFileResource::<Bmp>(Games::BaldursGate1, "AJANTISG".to_owned());
+```
+*/
 #[derive(Clone, Debug, Default)]
 pub struct ResourceManager
 {
@@ -84,7 +108,7 @@ impl ResourceManager
 		return Some(bif.to_owned());
 	}
 	
-	pub fn loadResource<T>(&mut self, game: Games, resourceName: String) -> Option<T::Output>
+	pub fn loadFileResource<T>(&mut self, game: Games, resourceName: String) -> Option<T::Output>
 		where T: InfinityEngineType
 	{
 		let key = self.loadKey(game)?;
