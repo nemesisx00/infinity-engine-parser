@@ -6,6 +6,7 @@ use ::anyhow::{Result, Context};
 use ::byteorder::{LittleEndian, ReadBytesExt};
 use ::image::{ImageFormat, ImageOutputFormat};
 use ::image::io::Reader as ImageReader;
+use ::strum::FromRepr;
 use crate::{readBytes, readString};
 use crate::types::util::InfinityEngineType;
 
@@ -17,6 +18,8 @@ const BPP_8bit: u16 = 8;
 const BPP_16bit: u16 = 16;
 const BPP_24bit: u16 = 24;
 
+#[derive(Clone, Copy, Debug, FromRepr, Eq, PartialEq, PartialOrd, Ord)]
+#[repr(u8)]
 pub enum BPP
 {
 	Monochrome,
