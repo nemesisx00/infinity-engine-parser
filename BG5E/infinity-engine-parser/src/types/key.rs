@@ -2,8 +2,8 @@
 #![cfg_attr(debug_assertions, allow(dead_code))]
 
 use std::io::Cursor;
-use anyhow::Result;
-use byteorder::{LittleEndian, ReadBytesExt};
+use ::anyhow::Result;
+use ::byteorder::{LittleEndian, ReadBytesExt};
 use crate::{readBytes, readString};
 use crate::bits::ReadValue;
 use crate::types::util::{Identity, InfinityEngineType};

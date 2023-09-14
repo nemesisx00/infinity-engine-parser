@@ -4,8 +4,8 @@
 use std::fs;
 use std::io::Cursor;
 use std::path::Path;
-use anyhow::{Result, Context};
-use byteorder::ReadBytesExt;
+use ::anyhow::{Result, Context};
+use ::byteorder::ReadBytesExt;
 use crate::{readBytes, readString};
 
 /**

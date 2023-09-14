@@ -2,11 +2,11 @@
 #![cfg_attr(debug_assertions, allow(dead_code))]
 
 use std::io::{Cursor, Read};
-use anyhow::{Result, Context};
-use byteorder::{LittleEndian, ReadBytesExt};
-use flate2::read::ZlibDecoder;
-use crate::bits::ReadValue;
+use ::anyhow::{Result, Context};
+use ::byteorder::{LittleEndian, ReadBytesExt};
+use ::flate2::read::ZlibDecoder;
 use crate::{readBytes, readString};
+use crate::bits::ReadValue;
 use crate::types::util::{Identity, InfinityEngineType};
 
 const BIFC_Signature: &str = "BIF ";

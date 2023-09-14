@@ -2,8 +2,8 @@
 #![cfg_attr(debug_assertions, allow(dead_code))]
 
 use std::collections::HashMap;
-use registry::{Hive, RegKey, Security};
-use crate::platform::global::*;
+use ::registry::{Hive, RegKey, Security};
+use super::global::{Games, GogGameId, SteamAppId};
 
 const DisplayName: &str = "DisplayName";
 const InstallLocation: &str = "InstallLocation";

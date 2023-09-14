@@ -1,16 +1,11 @@
 #![allow(non_snake_case, non_upper_case_globals)]
 #![cfg_attr(debug_assertions, allow(dead_code))]
 
-use std::{
-	collections::HashMap,
-	io::Cursor,
-	path::Path
-};
-
-use crate::{
-	platform::{Games, FindInstallationPath, KeyFileName},
-	types::{Bif, InfinityEngineType, Key, ReadFromFile}
-};
+use std::collections::HashMap;
+use std::io::Cursor;
+use std::path::Path;
+use crate::platform::{Games, FindInstallationPath, KeyFileName};
+use crate::types::{Bif, InfinityEngineType, Key, ReadFromFile};
 
 /**
 A convenient interface for retrieving resources from Infinity Engine game files.

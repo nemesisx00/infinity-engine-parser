@@ -2,12 +2,13 @@
 #![cfg_attr(debug_assertions, allow(dead_code))]
 
 use std::io::{Cursor, Read};
-use anyhow::{Result, Context};
-use byteorder::{LittleEndian, ReadBytesExt};
-use image::{ImageFormat, ImageOutputFormat};
-use image::io::Reader as ImageReader;
+use ::anyhow::{Result, Context};
+use ::byteorder::{LittleEndian, ReadBytesExt};
+use ::image::{ImageFormat, ImageOutputFormat};
+use ::image::io::Reader as ImageReader;
 use crate::{readBytes, readString};
 use crate::types::util::InfinityEngineType;
+
 const Type: &str = "BM";
 
 const BPP_1bit: u16 = 1;
