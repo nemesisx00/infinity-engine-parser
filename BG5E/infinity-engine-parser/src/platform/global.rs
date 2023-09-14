@@ -2,8 +2,10 @@
 #![cfg_attr(debug_assertions, allow(dead_code))]
 
 use std::collections::HashMap;
+use ::strum::FromRepr;
 
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, FromRepr, Hash, PartialEq)]
+#[repr(u32)]
 pub enum Games
 {
 	None,
