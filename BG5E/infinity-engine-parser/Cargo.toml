@@ -15,6 +15,7 @@ byteorder = "1"
 flate2 = "1.0"
 image = "0.24.7"
 safer-ffi = "0.1"
+strum = { version = "0.25.0", features = [ "derive" ] }
 
 [target.'cfg(windows)'.dependencies]
 registry = "1.2"
