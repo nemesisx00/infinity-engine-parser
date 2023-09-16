@@ -9,7 +9,7 @@ mod util;
 pub use bif::Bif;
 pub use bmp::Bmp;
 pub use key::Key;
-pub use util::{Identity, InfinityEngineType, ReadFromFile};
+pub use util::{Dimensions, Identity, InfinityEngineType, ReadFromFile};
 
 pub use bif::{
 	ResourceType_BAM,
