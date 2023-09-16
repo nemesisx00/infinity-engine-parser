@@ -44,7 +44,7 @@ pub fn ResourceSize(game: i32, resourceType: i16, resourceName: char_p::Ref<'_>)
 {
 	let size = match resourceType
 	{
-		ResourceType_BMP => SizeBmp(game, resourceName),
+		ResourceType_BMP => SizeBmp(game, resourceName.to_string()),
 		_ => 0,
 	};
 	
@@ -68,9 +68,8 @@ fn LoadBmp(game: i32, name: String) -> Vec<u8>
 	return data;
 }
 
-fn SizeBmp(game: i32, resourceName: char_p::Ref<'_>) -> usize
+fn SizeBmp(game: i32, name: String) -> usize
 {
-	let name = resourceName.to_str();
 	let mut size = 0;
 	if let Ok(mut resourceManager) = getManager().lock()
 	{
