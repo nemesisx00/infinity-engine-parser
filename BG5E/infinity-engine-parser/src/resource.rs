@@ -35,7 +35,7 @@ impl ResourceManager
 	
 	- **game** - The game which identifies the `Key` to be freed.
 	*/
-	pub fn freeKey(&mut self, game: Games)
+	pub fn removeKey(&mut self, game: Games)
 	{
 		if self.keys.contains_key(&game)
 		{
@@ -53,7 +53,7 @@ impl ResourceManager
 	- **fileName** - The path, relative to the installation directory, and file
 		name of the BIF file used to identify the `Bif` to free.
 	*/
-	pub fn freeBif(&mut self, game: Games, fileName: String)
+	pub fn removeBif(&mut self, game: Games, fileName: String)
 	{
 		if let Some(map) = self.bifs.get_mut(&game)
 		{
