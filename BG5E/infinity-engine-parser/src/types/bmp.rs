@@ -124,7 +124,7 @@ impl Bmp
 		
 		let mut data = vec![];
 		let mut cursor = Cursor::new(&mut data);
-		reader.write_to(&mut cursor, match format { None => ImageOutputFormat::Png, Some(fmt) => fmt })
+		reader.write_to(&mut cursor, format.unwrap_or(ImageOutputFormat::Png))
 			.context("")?;
 		
 		return Ok(data);
