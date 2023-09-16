@@ -13,7 +13,7 @@ use ::image::ImageOutputFormat;
 use ::safer_ffi::prelude::*;
 use platform::Games;
 use resource::ResourceManager;
-use types::{Bmp, ResourceType_BMP};
+use types::{Bmp, Dimensions, ResourceType_BMP};
 
 fn getManager() -> &'static Mutex<ResourceManager>
 {
@@ -23,6 +23,9 @@ fn getManager() -> &'static Mutex<ResourceManager>
 
 #[ffi_export]
 pub fn FreeBytes(data: repr_c::Vec<u8>) { drop(data); }
+
+#[ffi_export]
+pub fn FreeDimensions(dimensions: Dimensions) { drop(dimensions); }
 
 #[ffi_export]
 pub fn FreeString(str: char_p::Box) { drop(str); }
@@ -37,6 +40,16 @@ pub fn LoadResource(game: i32, resourceType: i16, resourceName: char_p::Ref<'_>)
 	}.into();
 	
 	return result;
+}
+
+#[ffi_export]
+pub fn ResourceDimensions(game: i32, resourceType: i16, resourceName: char_p::Ref<'_>) -> Dimensions
+{
+	match resourceType
+	{
+		ResourceType_BMP => LoadBmpDimensions(game, resourceName.to_string()).unwrap_or_default(),
+		_ => Dimensions::default(),
+	}
 }
 
 #[ffi_export]
@@ -66,6 +79,20 @@ fn LoadBmp(game: i32, name: String) -> Vec<u8>
 	}
 	
 	return data;
+}
+
+fn LoadBmpDimensions(game: i32, name: String) -> Option<Dimensions>
+{
+	let mut dimensions = None;
+	if let Ok(mut resourceManager) = getManager().lock()
+	{
+		if let Some(bmp) = resourceManager.loadFileResource::<Bmp>(Games::from_repr(game.to_owned()).unwrap_or(Games::None), name.to_owned())
+		{
+			dimensions = Some(Dimensions::new(bmp.info.height, bmp.info.width));
+		}
+	}
+	
+	return dimensions;
 }
 
 fn SizeBmp(game: i32, name: String) -> usize
@@ -159,6 +186,18 @@ mod tests
 		
 		FreeBytes(result);
 		drop(name);
+	}
+	
+	#[test]
+	fn TestResourceDimensions()
+	{
+		let game = Games::BaldursGate1;
+		let name = char_p::new("AJANTISG");
+		let r#type = ResourceType_BMP;
+		let expected = Dimensions::new(330, 210);
+		
+		let result = ResourceDimensions(game as i32, r#type, name.as_ref());
+		assert_eq!(expected, result);
 	}
 	
 	#[test]
