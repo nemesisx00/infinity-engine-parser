@@ -15,7 +15,7 @@ use platform::Games;
 use resource::ResourceManager;
 use types::{Bmp, Dimensions, ResourceType_BMP};
 
-fn getManager() -> &'static Mutex<ResourceManager>
+pub fn getManager() -> &'static Mutex<ResourceManager>
 {
 	static Manager: OnceLock<Mutex<ResourceManager>> = OnceLock::new();
 	return Manager.get_or_init(|| Mutex::new(ResourceManager::default()));
@@ -67,9 +67,12 @@ pub fn ResourceSize(game: i32, resourceType: i16, resourceName: char_p::Ref<'_>)
 fn LoadBmp(game: i32, name: String) -> Vec<u8>
 {
 	let mut data = vec![];
-	if let Ok(mut resourceManager) = getManager().lock()
+	if let Ok(resourceManager) = getManager().lock()
 	{
-		if let Some(bmp) = resourceManager.loadFileResource::<Bmp>(Games::from_repr(game.to_owned()).unwrap_or(Games::None), name.to_owned())
+		if let Some(bmp) = resourceManager.loadResource::<Bmp>(
+			Games::from_repr(game.to_owned()).unwrap_or(Games::None),
+			ResourceType_BMP,
+			name.to_owned())
 		{
 			if let Ok(image) = bmp.toImageBytes(Some(ImageOutputFormat::Png))
 			{
@@ -84,9 +87,12 @@ fn LoadBmp(game: i32, name: String) -> Vec<u8>
 fn LoadBmpDimensions(game: i32, name: String) -> Option<Dimensions>
 {
 	let mut dimensions = None;
-	if let Ok(mut resourceManager) = getManager().lock()
+	if let Ok(resourceManager) = getManager().lock()
 	{
-		if let Some(bmp) = resourceManager.loadFileResource::<Bmp>(Games::from_repr(game.to_owned()).unwrap_or(Games::None), name.to_owned())
+		if let Some(bmp) = resourceManager.loadResource::<Bmp>(
+			Games::from_repr(game.to_owned()).unwrap_or(Games::None),
+			ResourceType_BMP,
+			name.to_owned())
 		{
 			dimensions = Some(Dimensions::new(bmp.info.height, bmp.info.width));
 		}
@@ -98,9 +104,12 @@ fn LoadBmpDimensions(game: i32, name: String) -> Option<Dimensions>
 fn SizeBmp(game: i32, name: String) -> usize
 {
 	let mut size = 0;
-	if let Ok(mut resourceManager) = getManager().lock()
+	if let Ok(resourceManager) = getManager().lock()
 	{
-		if let Some(bmp) = resourceManager.loadFileResource::<Bmp>(Games::from_repr(game.to_owned()).unwrap_or(Games::None), name.to_owned())
+		if let Some(bmp) = resourceManager.loadResource::<Bmp>(
+			Games::from_repr(game.to_owned()).unwrap_or(Games::None),
+			ResourceType_BMP,
+			name.to_owned())
 		{
 			if let Ok(image) = bmp.toImageBytes(Some(ImageOutputFormat::Png))
 			{
@@ -123,9 +132,9 @@ mod tests
 		let game = Games::BaldursGate1;
 		
 		//Load a file resource.
-		if let Ok(mut resourceManager) = getManager().lock()
+		if let Ok(resourceManager) = getManager().lock()
 		{
-			let _ = resourceManager.loadFileResource::<Bmp>(game, "AJANTISG".to_owned());
+			let _ = resourceManager.loadResource::<Bmp>(game, ResourceType_BMP, "AJANTISG".to_owned());
 		}
 		
 		//Order of the tests being run is not guaranteed, so we have to get a
@@ -134,26 +143,26 @@ mod tests
 		let mut bifExpected = 0;
 		if let Ok(resourceManager) = getManager().lock()
 		{
-			keyExpected = resourceManager.keys.contains_key(&game);
-			bifExpected = match resourceManager.bifs.get(&game).is_some()
+			keyExpected = resourceManager.keys.borrow().contains_key(&game);
+			bifExpected = match resourceManager.bifs.borrow().contains_key(&game)
 			{
-				true => resourceManager.bifs.get(&game).unwrap().len(),
+				true => resourceManager.bifs.borrow()[&game].len(),
 				false => 0,
 			};
 		}
 		
 		//Load a different file resource from the same BIF.
-		if let Ok(mut resourceManager) = getManager().lock()
+		if let Ok(resourceManager) = getManager().lock()
 		{
-			let _ = resourceManager.loadFileResource::<Bmp>(game, "AJANTISS".to_owned());
+			let _ = resourceManager.loadResource::<Bmp>(game, ResourceType_BMP, "AJANTISS".to_owned());
 		}
 		
 		if let Ok(resourceManager) = getManager().lock()
 		{
-			let keyResult = resourceManager.keys.contains_key(&game);
-			let bifResult = match resourceManager.bifs.get(&game).is_some()
+			let keyResult = resourceManager.keys.borrow().contains_key(&game);
+			let bifResult = match resourceManager.bifs.borrow().contains_key(&game)
 			{
-				true => resourceManager.bifs.get(&game).unwrap().len(),
+				true => resourceManager.bifs.borrow()[&game].len(),
 				false => 0,
 			};
 			
