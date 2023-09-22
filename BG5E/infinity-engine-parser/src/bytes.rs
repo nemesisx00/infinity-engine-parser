@@ -43,5 +43,6 @@ macro_rules! readString
 		String::from_utf8($bytes.into())
 			.map_err(|nonUtf8| String::from_utf8_lossy(nonUtf8.as_bytes()).into_owned())
 			.unwrap()
+			.replace("\0", "")
 	}
 }
