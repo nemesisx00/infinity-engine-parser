@@ -304,6 +304,7 @@ mod tests
     use super::*;
 	use crate::platform::Games;
 	use crate::resource::ResourceManager;
+	use crate::types::ResourceType_BMP;
 	
 	#[test]
 	fn BmpTest()
@@ -316,10 +317,10 @@ mod tests
 			"AJANTISG", //24 bit
 		];
 		
-		let mut resourceManager = ResourceManager::default();
+		let resourceManager = ResourceManager::default();
 		for name in resourceNames.clone()
 		{
-			let bmp = resourceManager.loadFileResource::<Bmp>(Games::BaldursGate1, name.to_owned()).unwrap();
+			let bmp = resourceManager.loadResource::<Bmp>(Games::BaldursGate1, ResourceType_BMP, name.to_owned()).unwrap();
 			
 			assert_eq!(Type, bmp.file.r#type);
 			assert_eq!(14, bmp.file.toBytes().len());
