@@ -6,7 +6,7 @@ use ::anyhow::Result;
 use ::byteorder::{LittleEndian, ReadBytesExt};
 use crate::{readBytes, readString};
 use crate::bits::ReadValue;
-use crate::types::util::{Identity, InfinityEngineType};
+use super::{Identity, InfinityEngineType};
 
 const FileName: &str = "chitin.key";
 
