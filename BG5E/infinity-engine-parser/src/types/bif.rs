@@ -7,7 +7,8 @@ use ::byteorder::{LittleEndian, ReadBytesExt};
 use ::flate2::read::ZlibDecoder;
 use crate::{readBytes, readString};
 use crate::bits::ReadValue;
-use crate::types::util::{Identity, InfinityEngineType};
+use super::util::{Identity, InfinityEngineType};
+use super::Tis;
 
 const BIFC_Signature: &str = "BIF ";
 const BIFC_Version: &str = "V1.0";
@@ -309,6 +310,14 @@ impl InfinityEngineType for Bif
 			entry.data = bytes;
 		}
 		
+		for mut entry in tilesetEntries.as_mut_slice()
+		{
+			cursor.set_position(entry.offset as u64);
+			let mut tis = Tis::default();
+			tis.readData(cursor, entry.tileCount)?;
+			entry.data = Some(tis);
+		}
+		
 		return Ok(Self
 		{
 			identity,
@@ -401,7 +410,7 @@ Offset | Size | Description
 0x0010 | 2 | Type of this resource (always 0x3eb - TIS)
 0x0012 | 2 | Unknown
 */
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct TilesetEntry
 {
 	pub locator: u32,
@@ -410,6 +419,7 @@ pub struct TilesetEntry
 	pub tileSize: u32,
 	pub r#type: u16,
 	pub unknown: u16,
+	pub data: Option<Tis>,
 }
 
 const TilesetEntryIndex_MaskBits: u32 = 6;
@@ -440,6 +450,7 @@ impl TilesetEntry
 			tileSize,
 			r#type,
 			unknown,
+			..Default::default()
 		});
 	}
 	
