@@ -1,6 +1,7 @@
 #![allow(non_snake_case, non_upper_case_globals)]
 #![cfg_attr(debug_assertions, allow(dead_code))]
 
+use std::collections::HashMap;
 use std::io::{Cursor, Read};
 use ::anyhow::{Context, Result};
 use ::byteorder::{LittleEndian, ReadBytesExt};
@@ -48,9 +49,9 @@ pub struct Wed
 	pub overlays: Vec<Overlay>,
 	pub secondaryHeader: SecondaryHeader,
 	pub doors: Vec<Door>,
-	pub tilemaps: Vec<Tilemap>,
-	pub doorTileCellIndices: Vec<usize>,
-	pub tileIndexLookup: Vec<usize>,
+	pub tilemaps: HashMap<String, Vec<Tilemap>>,
+	pub doorTileCellIndices: Vec<u32>,
+	pub tileIndexLookupTable: Vec<u16>,
 	pub wallGroups: Vec<WallGroup>,
 	pub polygons: Vec<Polygon>,
 	pub polygonIndexLookup: Vec<usize>,
@@ -87,7 +88,45 @@ impl InfinityEngineType for Wed
 			doors.push(door);
 		}
 		
+		let mut tilemaps = HashMap::<String, Vec<Tilemap>>::default();
+		for entry in &overlays
+		{
+			let tileCount = match &entry.tis
+			{
+				Some(tis) => tis.tileCount,
+				None => 0,
+			};
+			
+			let mut tilesRead = 0;
+			let mut instances = vec![];
+			while tilesRead < tileCount
+			{
+				let tilemap = Tilemap::fromCursor(cursor)?;
+				tilesRead += tilemap.count as u32;
+				instances.push(tilemap);
+			}
+			
+			if !instances.is_empty()
+			{
+				tilemaps.insert(entry.name.to_owned(), instances);
+			}
+		}
 		
+		let mut doorTileCellIndices = vec![];
+		cursor.set_position(doorTileOffset as u64);
+		for _ in 0..doorCount
+		{
+			let index = cursor.read_u32::<LittleEndian>()?;
+			doorTileCellIndices.push(index);
+		}
+		
+		let lookupTableSize = tilemaps.iter().fold(0, |acc, (_, list)| acc + list.len());
+		let mut tileIndexLookupTable = vec![];
+		for _ in 0..lookupTableSize
+		{
+			let index = cursor.read_u16::<LittleEndian>()?;
+			tileIndexLookupTable.push(index);
+		}
 		
 		return Ok(Self
 		{
@@ -101,6 +140,9 @@ impl InfinityEngineType for Wed
 			overlays,
 			secondaryHeader,
 			doors,
+			tilemaps,
+			doorTileCellIndices,
+			tileIndexLookupTable,
 			..Default::default()
 		});
 	}
@@ -510,11 +552,11 @@ mod tests
 			("DOOR2606", 1, 24),
 		];
 		let expectedOverlays = vec![
-			("AR2600", 80, 60, true),
-			("WTWAVE", 1, 1, true),
-			("WTPOOL", 1, 1, true),
-			("", 0, 0, false),
-			("", 0, 0, false),
+			("AR2600", 80, 60, true, true, 4803, 576),
+			("WTWAVE", 1, 1, true, true, 1, 2984),
+			("WTPOOL", 1, 1, true, true, 1, 3311),
+			("", 0, 0, false, false, 0, 0),
+			("", 0, 0, false, false, 0, 0),
 		];
 		let expectedPolygonCount = 957;
 		
@@ -539,12 +581,23 @@ mod tests
 		
 		for i in 0..expectedOverlays.len()
 		{
-			let (name, width, height, isSome) = expectedOverlays[i];
+			let (name, width, height, isSome, hasTilemap, tilemapLength, lastStartIndex) = expectedOverlays[i];
 			assert_eq!(name, result.overlays[i].name);
 			assert_eq!(width, result.overlays[i].width);
 			assert_eq!(height, result.overlays[i].height);
 			assert_eq!(isSome, result.overlays[i].tis.is_some());
+			assert_eq!(hasTilemap, result.tilemaps.contains_key(&result.overlays[i].name));
+			
+			if hasTilemap
+			{
+				assert!(!result.tilemaps[&result.overlays[i].name].is_empty());
+				assert_eq!(tilemapLength, result.tilemaps[&result.overlays[i].name].len());
+				assert_eq!(lastStartIndex, result.tilemaps[&result.overlays[i].name].last().unwrap().start);
+			}
 		}
+		
+		assert_eq!(expectedDoors.len(), result.doorTileCellIndices.len());
+		assert_eq!(expectedOverlays.iter().fold(0, |acc, (_, _, _, _, _, count, _)| acc + count), result.tileIndexLookupTable.len());
 		
 		//Verify with eyes
 		/*
