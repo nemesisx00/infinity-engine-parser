@@ -9,6 +9,8 @@ use ::byteorder::ReadBytesExt;
 use ::safer_ffi::derive_ReprC;
 use crate::{readBytes, readString};
 
+pub const TypeSize_RESREF: usize = 8;
+
 /**
 A data type which can be found in and read from Infinity Engine game files.
 */
