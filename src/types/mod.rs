@@ -6,6 +6,7 @@ mod bif;
 mod bmp;
 mod key;
 mod tis;
+mod tlk;
 mod util;
 mod wed;
 
@@ -14,7 +15,8 @@ pub use bif::Bif;
 pub use bmp::Bmp;
 pub use key::Key;
 pub use tis::Tis;
-pub use util::{Dimensions, Identity, InfinityEngineType, ReadFromFile};
+pub use tlk::Tlk;
+pub use util::{TypeSize_RESREF, Dimensions, Identity, InfinityEngineType, Readable, ReadFromFile, ReadList};
 
 pub use bif::{
 	ResourceType_ARE,
