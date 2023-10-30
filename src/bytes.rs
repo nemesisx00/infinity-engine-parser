@@ -2,10 +2,10 @@
 #![cfg_attr(debug_assertions, allow(dead_code))]
 
 use std::io::Cursor;
-use anyhow::Error;
 use ::anyhow::Result;
 use crate::types::TypeSize_RESREF;
 
+pub const Nul: &str = "\0";
 pub const StringNameLength: usize = 32;
 
 /**
@@ -22,15 +22,23 @@ macro_rules! parseString
 {
 	($bytes:expr) => {
 		{
+			use crate::bytes::Nul;
+			
 			let parsed = String::from_utf8($bytes.into())
 				.map_err(|nonUtf8| String::from_utf8_lossy(nonUtf8.as_bytes()).to_string());
 			
-			match parsed
+			let out = match parsed
 			{
 				Ok(success) => success,
 				Err(notSuccess) => notSuccess,
+			};
+			
+			//Trim NUL, and any following characters, from the end of the string
+			match out.find(Nul)
+			{
+				Some(idx) => out[0..idx].to_string(),
+				None => out,
 			}
-				.replace("\0", "")
 		}
 	}
 }
@@ -107,12 +115,8 @@ macro_rules! readString
 	($cursor:expr, $length:expr) => {
 		{
 			use crate::{parseString, readBytesExact};
-			use crate::bytes::readToReal;
 			
 			let bytes = readBytesExact!($cursor, $length);
-			let mut realBytes: [u8; $length] = [0; $length];
-			readToReal(&bytes, &mut realBytes)?;
-			
 			parseString!(bytes)
 		}
 	}
@@ -164,41 +168,4 @@ pub fn readName(cursor: &mut Cursor<Vec<u8>>) -> Result<String>
 {
 	let name = readString!(cursor, StringNameLength);
 	return Ok(name);
-}
-
-/**
-Fill the `real` byte array with values from the `read` byte array in order until
-a NUL is found.
-
-#### Note
-
-Strings stored in Infinity Engine resources are NUL terminated and are not
-guaranteed to fill up the entire possible length available in the binary data.
-Thus only values up to the first NUL should be considered valid data with any
-remaining values being considered garbage to be discarded.
-*/
-pub fn readToReal(read: &[u8], real: &mut [u8]) -> Result<()>
-{
-	if read.len() != real.len()
-	{
-		return Err(
-			Error::new(
-				std::io::Error::new(
-					std::io::ErrorKind::InvalidData,
-					format!("Byte arrays are not the same length! {} != {}", read.len(), real.len())
-				)
-			)
-		);
-	}
-	
-	for (i, byte) in read.iter().enumerate()
-	{
-		match *byte > 0
-		{
-			true => real[i] = *byte,
-			false => break,
-		}
-	}
-	
-	return Ok(());
 }
