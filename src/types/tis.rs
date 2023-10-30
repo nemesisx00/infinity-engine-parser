@@ -3,10 +3,7 @@
 
 use std::io::{Cursor, Read};
 use ::anyhow::{Context, Result};
-use super::Identity;
-
-const Signature: &str = "TIS ";
-const Version: &str = "V1  ";
+use super::{Identity, Readable};
 
 /**
 The fully parsed contents of a TIS file.
@@ -47,42 +44,28 @@ pub struct Tis
 	pub tiles: Vec<TisTileData>,
 }
 
-
-/**
-A palette-based TIS tile palette always has 256 32-bit colors.
-
-256 * 4 = 1024 bytes
-*/
-const Tis_PaletteSize: usize = 1024;
-
-/**
-A palette-based TIS tile is always sized 64x64.
-
-64 * 64 = 4096 bytes
-*/
-const Tis_TileLength: u32 = 4096;
-
-const Tis_HeaderSize: u32 = 24;
-const Tis_TileSize: u32 = 64;
-
-impl Default for Tis
-{
-	fn default() -> Self
-	{
-		return Self
-		{
-			identity: Identity { signature: Signature.to_owned(), version: Version.to_owned() },
-			tileCount: 0,
-			tileLength: Tis_TileLength,
-			headerSize: Tis_HeaderSize,
-			tileSize: Tis_TileSize,
-			tiles: vec![],
-		};
-	}
-}
-
 impl Tis
 {
+	const Signature: &str = "TIS ";
+	const Version: &str = "V1  ";
+	
+	/**
+	A palette-based TIS tile palette always has 256 32-bit colors.
+	
+	256 * 4 = 1024 bytes
+	*/
+	const PaletteSize: usize = 1024;
+	
+	/**
+	A palette-based TIS tile is always sized 64x64.
+	
+	64 * 64 = 4096 bytes
+	*/
+	const TileLength: u32 = 4096;
+	
+	const HeaderSize: u32 = 24;
+	const TileSize: u32 = 64;
+	
 	pub fn readData(&mut self, cursor: &mut Cursor<Vec<u8>>, count: u32, ) -> Result<()>
 	{
 		self.tileCount = count;
@@ -97,6 +80,22 @@ impl Tis
 		self.tiles = tiles;
 		
 		return Ok(());
+	}
+}
+
+impl Default for Tis
+{
+	fn default() -> Self
+	{
+		return Self
+		{
+			identity: Identity { signature: Self::Signature.to_owned(), version: Self::Version.to_owned() },
+			tileCount: 0,
+			tileLength: Self::TileLength,
+			headerSize: Self::HeaderSize,
+			tileSize: Self::TileSize,
+			tiles: vec![],
+		};
 	}
 }
 
@@ -126,42 +125,23 @@ pub struct TisTileData
 	pub pixels: Vec<u8>,
 }
 
-const Tis_ColorByteCount: usize = 4;
-
 impl TisTileData
 {
-	pub fn fromCursor(cursor: &mut Cursor<Vec<u8>>) -> Result<Self>
-	{
-		let mut paletteBytes = [0; Tis_PaletteSize];
-		cursor.read_exact(&mut paletteBytes)
-			.context("Failed reading Tis tile palette")?;
-		
-		let mut pixels = [0; Tis_TileLength as usize];
-		cursor.read_exact(&mut pixels)
-			.context("Failed reading Tis tile data")?;
-		
-		let palette = Self::generatePalette(paletteBytes)?;
-		
-		return Ok(Self
-		{
-			palette: palette,
-			pixels: pixels.into(),
-		});
-	}
+	const ColorByteCount: usize = 4;
 	
 	/**
 	Build the palette by processing the color bytes from BGRA to RGBA order.
 	*/
-	pub fn generatePalette(bytes: [u8; Tis_PaletteSize]) -> Result<Vec<u32>>
+	pub fn generatePalette(bytes: [u8; Tis::PaletteSize]) -> Result<Vec<u32>>
 	{
 		let mut palette = vec![];
 		
-		for i in 0..Tis_PaletteSize / Tis_ColorByteCount
+		for i in 0..Tis::PaletteSize / Self::ColorByteCount
 		{
-			let start = i * Tis_ColorByteCount;
-			let end = start + Tis_ColorByteCount;
+			let start = i * Self::ColorByteCount;
+			let end = start + Self::ColorByteCount;
 			let slice = &bytes[start..end];
-			let mut fixed: [u8; Tis_ColorByteCount] = slice.split_at(Tis_ColorByteCount).0.try_into()
+			let mut fixed: [u8; Self::ColorByteCount] = slice.split_at(Self::ColorByteCount).0.try_into()
 				.context("Failed to split TIS Tile Palette slice into fixed size slice")?;
 			
 			//Swap B and R from BGRA to make it RGBA
@@ -190,6 +170,28 @@ impl TisTileData
 		}
 		
 		return bytes;
+	}
+}
+
+impl Readable for TisTileData
+{
+	fn fromCursor(cursor: &mut Cursor<Vec<u8>>) -> Result<Self>
+	{
+		let mut paletteBytes = [0; Tis::PaletteSize];
+		cursor.read_exact(&mut paletteBytes)
+			.context("Failed reading Tis tile palette")?;
+		
+		let mut pixels = [0; Tis::TileLength as usize];
+		cursor.read_exact(&mut pixels)
+			.context("Failed reading Tis tile data")?;
+		
+		let palette = Self::generatePalette(paletteBytes)?;
+		
+		return Ok(Self
+		{
+			palette: palette,
+			pixels: pixels.into(),
+		});
 	}
 }
 
