@@ -7,10 +7,8 @@ use ::byteorder::{LittleEndian, ReadBytesExt};
 use ::image::{ImageFormat, ImageOutputFormat};
 use ::image::io::Reader as ImageReader;
 use ::strum::FromRepr;
-use crate::{readBytes, readString};
-use crate::types::util::InfinityEngineType;
-
-const Type: &str = "BM";
+use crate::readString;
+use super::{InfinityEngineType, Readable};
 
 const BPP_1bit: u16 = 1;
 const BPP_4bit: u16 = 4;
@@ -55,12 +53,57 @@ pub struct Bmp
 	pub encoded: Vec<u8>,
 }
 
-impl InfinityEngineType for Bmp
+impl Bmp
 {
-	type Output = Bmp;
+	const Type: &str = "BM";
+	const TypeLength: usize = 2;
 	
-	fn fromCursor<T>(cursor: &mut Cursor<Vec<u8>>) -> Result<Self::Output>
-		where T: InfinityEngineType
+	pub fn adhoc(width: i32, height: i32, pixels: Vec<u8>, palette: Option<Vec<u32>>) -> Self
+	{
+		return Self
+		{
+			file: BmpFile::adhoc(pixels.len() as u32),
+			info: BmpInfo::adhoc(width, height),
+			colors: palette.unwrap_or_default(),
+			encoded: pixels.clone(),
+		};
+	}
+	
+	pub fn toBytes(&self) -> Vec<u8>
+	{
+		let mut bytes = vec![];
+		bytes.append(self.file.toBytes().as_mut());
+		bytes.append(self.info.toBytes().as_mut());
+		
+		for color in self.colors.clone()
+		{
+			bytes.append(color.to_le_bytes().to_vec().as_mut());
+		}
+		
+		bytes.append(self.encoded.to_vec().as_mut());
+		
+		return bytes;
+	}
+	
+	pub fn toImageBytes(&self, format: Option<ImageOutputFormat>) -> Result<Vec<u8>>
+	{
+		let reader = ImageReader::with_format(Cursor::new(self.toBytes()), ImageFormat::Bmp)
+			.decode()?;
+		
+		let mut data = vec![];
+		let mut cursor = Cursor::new(&mut data);
+		reader.write_to(&mut cursor, format.unwrap_or(ImageOutputFormat::Png))
+			.context("")?;
+		
+		return Ok(data);
+	}
+}
+
+impl InfinityEngineType for Bmp {}
+
+impl Readable for Bmp
+{
+	fn fromCursor(cursor: &mut Cursor<Vec<u8>>) -> Result<Self>
 	{
 		let file = BmpFile::fromCursor(cursor)
 			.context("Failed to read BMP file header")?;
@@ -99,38 +142,6 @@ impl InfinityEngineType for Bmp
 	}
 }
 
-impl Bmp
-{
-	pub fn toBytes(&self) -> Vec<u8>
-	{
-		let mut bytes = vec![];
-		bytes.append(self.file.toBytes().as_mut());
-		bytes.append(self.info.toBytes().as_mut());
-		
-		for color in self.colors.clone()
-		{
-			bytes.append(color.to_le_bytes().to_vec().as_mut());
-		}
-		
-		bytes.append(self.encoded.to_vec().as_mut());
-		
-		return bytes;
-	}
-	
-	pub fn toImageBytes(&self, format: Option<ImageOutputFormat>) -> Result<Vec<u8>>
-	{
-		let reader = ImageReader::with_format(Cursor::new(self.toBytes()), ImageFormat::Bmp)
-			.decode()?;
-		
-		let mut data = vec![];
-		let mut cursor = Cursor::new(&mut data);
-		reader.write_to(&mut cursor, format.unwrap_or(ImageOutputFormat::Png))
-			.context("")?;
-		
-		return Ok(data);
-	}
-}
-
 // --------------------------------------------------
 
 /**
@@ -158,10 +169,34 @@ pub struct BmpFile
 
 impl BmpFile
 {
-	pub fn fromCursor(cursor: &mut Cursor<Vec<u8>>) -> Result<Self>
+	pub fn adhoc(pixelSize: u32) -> Self
 	{
-		let typeBytes = readBytes!(cursor, Type.len());
-		let r#type = readString!(typeBytes);
+		let offset = 54;
+		return Self
+		{
+			r#type: Bmp::Type.to_string(),
+			size: offset + pixelSize,
+			reserved: 0,
+			offset: offset,
+		};
+	}
+	
+	pub fn toBytes(&self) -> Vec<u8>
+	{
+		let mut bytes = vec![];
+		bytes.append(self.r#type.as_bytes().to_vec().as_mut());
+		bytes.append(self.size.to_le_bytes().to_vec().as_mut());
+		bytes.append(self.reserved.to_le_bytes().to_vec().as_mut());
+		bytes.append(self.offset.to_le_bytes().to_vec().as_mut());
+		return bytes;
+	}
+}
+
+impl Readable for BmpFile
+{
+	fn fromCursor(cursor: &mut Cursor<Vec<u8>>) -> Result<Self>
+	{
+		let r#type = readString!(cursor, Bmp::TypeLength);
 		let size = cursor.read_u32::<LittleEndian>()
 			.context("Failed to read BMP FileHeader size")?;
 		let reserved = cursor.read_u32::<LittleEndian>()
@@ -176,16 +211,6 @@ impl BmpFile
 			reserved,
 			offset,
 		});
-	}
-	
-	pub fn toBytes(&self) -> Vec<u8>
-	{
-		let mut bytes = vec![];
-		bytes.append(self.r#type.as_bytes().to_vec().as_mut());
-		bytes.append(self.size.to_le_bytes().to_vec().as_mut());
-		bytes.append(self.reserved.to_le_bytes().to_vec().as_mut());
-		bytes.append(self.offset.to_le_bytes().to_vec().as_mut());
-		return bytes;
 	}
 }
 
@@ -231,7 +256,45 @@ pub struct BmpInfo
 
 impl BmpInfo
 {
-	pub fn fromCursor(cursor: &mut Cursor<Vec<u8>>) -> Result<Self>
+	pub fn adhoc(width: i32, height: i32) -> Self
+	{
+		return Self
+		{
+			size: 40,
+			width,
+			height,
+			planes: 1,
+			bitsPerPixel: BPP_24bit,
+			compression: 0,
+			compressedSize: 0,
+			resolutionHorizontal: width * 7,
+			resolutionVertical: height * 7,
+			colorsUsed: 0,
+			colorsImportant: 0,
+		};
+	}
+	
+	pub fn toBytes(&self) -> Vec<u8>
+	{
+		let mut bytes = vec![];
+		bytes.append(self.size.to_le_bytes().to_vec().as_mut());
+		bytes.append(self.width.to_le_bytes().to_vec().as_mut());
+		bytes.append(self.height.to_le_bytes().to_vec().as_mut());
+		bytes.append(self.planes.to_le_bytes().to_vec().as_mut());
+		bytes.append(self.bitsPerPixel.to_le_bytes().to_vec().as_mut());
+		bytes.append(self.compression.to_le_bytes().to_vec().as_mut());
+		bytes.append(self.compressedSize.to_le_bytes().to_vec().as_mut());
+		bytes.append(self.resolutionHorizontal.to_le_bytes().to_vec().as_mut());
+		bytes.append(self.resolutionVertical.to_le_bytes().to_vec().as_mut());
+		bytes.append(self.colorsUsed.to_le_bytes().to_vec().as_mut());
+		bytes.append(self.colorsImportant.to_le_bytes().to_vec().as_mut());
+		return bytes;
+	}
+}
+
+impl Readable for BmpInfo
+{
+	fn fromCursor(cursor: &mut Cursor<Vec<u8>>) -> Result<Self>
 	{
 		let size = cursor.read_u32::<LittleEndian>()
 			.context("Failed to read BMP InfoHeader size")?;
@@ -271,23 +334,6 @@ impl BmpInfo
 			colorsImportant,
 		});
 	}
-	
-	pub fn toBytes(&self) -> Vec<u8>
-	{
-		let mut bytes = vec![];
-		bytes.append(self.size.to_le_bytes().to_vec().as_mut());
-		bytes.append(self.width.to_le_bytes().to_vec().as_mut());
-		bytes.append(self.height.to_le_bytes().to_vec().as_mut());
-		bytes.append(self.planes.to_le_bytes().to_vec().as_mut());
-		bytes.append(self.bitsPerPixel.to_le_bytes().to_vec().as_mut());
-		bytes.append(self.compression.to_le_bytes().to_vec().as_mut());
-		bytes.append(self.compressedSize.to_le_bytes().to_vec().as_mut());
-		bytes.append(self.resolutionHorizontal.to_le_bytes().to_vec().as_mut());
-		bytes.append(self.resolutionVertical.to_le_bytes().to_vec().as_mut());
-		bytes.append(self.colorsUsed.to_le_bytes().to_vec().as_mut());
-		bytes.append(self.colorsImportant.to_le_bytes().to_vec().as_mut());
-		return bytes;
-	}
 }
 
 #[cfg(test)]
@@ -309,8 +355,6 @@ mod tests
 	#[test]
 	fn BmpTest()
 	{
-		//TODO: Make this test not rely on actually reading a file from the file system.
-		
 		let resourceNames = vec![
 			"AR0002SR", //4 bit
 			"AJANTISS", //8 bit
@@ -322,7 +366,7 @@ mod tests
 		{
 			let bmp = resourceManager.loadResource::<Bmp>(Games::BaldursGate1, ResourceType_BMP, name.to_owned()).unwrap();
 			
-			assert_eq!(Type, bmp.file.r#type);
+			assert_eq!(Bmp::Type, bmp.file.r#type);
 			assert_eq!(14, bmp.file.toBytes().len());
 			assert_eq!(bmp.info.size as usize, bmp.info.toBytes().len());
 			
