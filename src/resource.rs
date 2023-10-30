@@ -5,8 +5,9 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::io::Cursor;
 use std::path::Path;
+use ::glob::glob;
 use crate::platform::{Games, FindInstallationPath, KeyFileName};
-use crate::types::{Bif, InfinityEngineType, Key, ReadFromFile, ResourceType_TIS, Tis};
+use crate::types::{ResourceType_TIS, Bif, InfinityEngineType, Key, Readable, Tis, Tlk, ReadFromFile};
 
 /**
 A convenient interface for retrieving resources from Infinity Engine game files.
@@ -25,6 +26,7 @@ pub struct ResourceManager
 {
 	pub keys: RefCell<HashMap<Games, Key>>,
 	pub bifs: RefCell<HashMap<Games, HashMap<String, Bif>>>,
+	pub tlks: RefCell<HashMap<Games, HashMap<String, Tlk>>>,
 }
 
 impl ResourceManager
@@ -73,6 +75,33 @@ impl ResourceManager
 	}
 	
 	/**
+	Remove a `game`'s `Tlk` from the cache.
+	
+	## Parameters
+	
+	- **game** - The game which identifies the `Tlk` list containing the `Tlk`
+		to be freed.
+	- **fileName** - The path, relative to the installation directory, and file
+		name of the TLK file used to identify the `Tlk` to free.
+	*/
+	pub fn removeTlk(&self, game: Games, fileName: String)
+	{
+		let mut tlks = self.tlks.borrow_mut();
+		if let Some(map) = tlks.get_mut(&game)
+		{
+			if map.contains_key(&fileName)
+			{
+				map.remove(&fileName);
+			}
+			
+			if map.is_empty()
+			{
+				tlks.remove(&game);
+			}
+		}
+	}
+	
+	/**
 	Load a `game`'s BIF file.
 	
 	When read from the file system, the `Bif` is stored in the `self.bifs`
@@ -91,7 +120,7 @@ impl ResourceManager
 	use crate::{platform::Games, resources::ResourceManager, types::Bif};
 	
 	let resourceManager: ResourceManager = ResourceManager::default();
-	let bif: Option<Bif> = resourceManager.loadKey(Games::BaldursGate1, "data\\Default.bif".to_owned());
+	let bif: Option<Bif> = resourceManager.loadKey(Games::BaldursGate1, "data\\Default.bif".to_string());
 	assert!(bif.is_some());
 	```
 	
@@ -112,7 +141,7 @@ impl ResourceManager
 				let mut bifs = self.bifs.borrow_mut();
 				if !bifs.contains_key(&game)
 				{
-					bifs.insert(game, HashMap::<String, Bif>::default());
+					bifs.insert(game, HashMap::new());
 				}
 				
 				if let Some(map) = bifs.get_mut(&game)
@@ -122,8 +151,7 @@ impl ResourceManager
 			}
 		}
 		
-		let bif = &self.bifs.borrow()[&game][&fileName];
-		return Some(bif.to_owned());
+		return Some(self.bifs.borrow().get(&game)?.get(&fileName)?.to_owned());
 	}
 	
 	/**
@@ -166,8 +194,7 @@ impl ResourceManager
 			}
 		};
 		
-		let key = &self.keys.borrow()[&game];
-		return Some(key.to_owned());
+		return Some(self.keys.borrow().get(&game)?.to_owned());
 	}
 	
 	/**
@@ -191,7 +218,7 @@ impl ResourceManager
 	use crate::{platform::Games, resources::ResourceManager, types::{Bmp, ResourceType_BMP}};
 	
 	let resourceManager: ResourceManager = ResourceManager::default();
-	let bmp: Option<Bmp> = resourceManager.loadResource::<Bmp>(Games::BaldursGate1, ResourceType_BMP, "AJANTISG".to_owned());
+	let bmp: Option<Bmp> = resourceManager.loadResource::<Bmp>(Games::BaldursGate1, ResourceType_BMP, "AJANTISG".to_string());
 	assert!(bmp.is_some());
 	```
 	
@@ -203,8 +230,8 @@ impl ResourceManager
 	results, it will minimize the interaction with the file system when loading
 	multiple resources.
 	*/
-	pub fn loadResource<T>(&self, game: Games, resourceType: i16, resourceName: String) -> Option<T::Output>
-		where T: InfinityEngineType
+	pub fn loadResource<T>(&self, game: Games, resourceType: i16, resourceName: String) -> Option<T>
+		where T: InfinityEngineType + Readable
 	{
 		let key = self.loadKey(game)?;
 		let resourceEntry = key.resourceEntries
@@ -219,7 +246,7 @@ impl ResourceManager
 					.find(|entry| entry.index() == resourceEntry.indexFile())?;
 		
 		let mut cursor = Cursor::new(fileEntry.data.clone());
-		return match T::fromCursor::<T>(&mut cursor)
+		return match T::fromCursor(&mut cursor)
 		{
 			Ok(res) => Some(res),
 			Err(_) => None,
@@ -242,7 +269,7 @@ impl ResourceManager
 	use crate::{platform::Games, resources::ResourceManager, types::Tis};
 
 	let resourceManager: ResourceManager = ResourceManager::default();
-	let tis: Option<Tis> = resourceManager.loadTileset(Games::BaldursGate1, "AJANTISG".to_owned());
+	let tis: Option<Tis> = resourceManager.loadTileset(Games::BaldursGate1, "AR2600".to_string());
 	assert!(tis.is_some());
 	```
 	
@@ -259,7 +286,7 @@ impl ResourceManager
 		let key = self.loadKey(game)?;
 		let resourceEntry = key.resourceEntries
 			.iter()
-			.find(|entry|  entry.r#type == ResourceType_TIS as u16 && entry.name == resourceName)?;
+			.find(|entry| entry.r#type == ResourceType_TIS as u16 && entry.name.to_string() == resourceName.to_string())?;
 		
 		let bifEntry = key.bifEntries.get(resourceEntry.indexBifEntry() as usize)?;
 		let bif = self.loadBif(game, bifEntry.fileName.to_owned())?;
@@ -269,5 +296,65 @@ impl ResourceManager
 			.find(|entry| entry.index() == resourceEntry.indexTileset())?;
 		
 		return tilesetEntry.data.to_owned();
+	}
+	
+	/**
+	Load a named `Tlk` file from a game's install directory.
+	
+	## Parameters
+	
+	- **game** - The game which identifies the installation path from which to
+		read.
+	- **fileName** - The name of the TLK file to be loaded.
+	
+	## Usage
+	
+	```
+	use crate::{platform::Games, resources::ResourceManager, types::Tlk};
+
+	let resourceManager: ResourceManager = ResourceManager::default();
+	let tlk: Option<Tlk> = resourceManager.loadTileset(Games::BaldursGate1, "dialog.tlk".to_string());
+	assert!(tlk.is_some());
+	```
+	
+	## Remarks
+	
+	This method searches through the game install directory and subdirectories
+	to find the desired TLK file. The results are cached to minimize the
+	interaction with the file system on subsequent requests.
+	*/
+	pub fn loadTlk(&self, game: Games, fileName: String) -> Option<Tlk>
+	{
+		if !self.tlks.borrow().contains_key(&game) || !self.tlks.borrow()[&game].contains_key(&fileName)
+		{
+			let installPath = FindInstallationPath(game)?;
+			let patternString = format!("{}**\\{}", installPath, fileName);
+			
+			if let Ok(paths) = glob(&patternString)
+			{
+				for entry in paths
+				{
+					if let Ok(path) = entry
+					{
+						if let Ok(instance) = ReadFromFile::<Tlk>(path.as_path())
+						{
+							let mut tlks = self.tlks.borrow_mut();
+							if !tlks.contains_key(&game)
+							{
+								tlks.insert(game.to_owned(), HashMap::new());
+							}
+							
+							if let Some(map) = tlks.get_mut(&game)
+							{
+								map.insert(fileName.to_owned(), instance);
+								break;
+							}
+						}
+					}
+				}
+			}
+		};
+		
+		return Some(self.tlks.borrow().get(&game)?.get(&fileName)?.to_owned());
 	}
 }
