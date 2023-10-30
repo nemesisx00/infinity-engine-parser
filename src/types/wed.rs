@@ -5,13 +5,10 @@ use std::collections::HashMap;
 use std::io::{Cursor, Read};
 use ::anyhow::{Context, Result};
 use ::byteorder::{LittleEndian, ReadBytesExt};
-use crate::{readString, getManager};
+use crate::bytes::readResRef;
+use crate::getManager;
 use crate::platform::Games;
-use super::util::TypeSize_RESREF;
-use super::{Identity, InfinityEngineType, Tis, ResourceType_TIS};
-
-const Signature: &str = "WED ";
-const Version: &str = "V1.3";
+use super::{Identity, InfinityEngineType, Readable, Tis};
 
 /**
 The fully parsed contents of a WED file.
@@ -57,14 +54,20 @@ pub struct Wed
 	pub polygonIndexLookup: Vec<usize>,
 }
 
-impl InfinityEngineType for Wed
+impl Wed
 {
-	type Output = Wed;
-	
-	fn fromCursor<T>(cursor: &mut Cursor<Vec<u8>>) -> Result<Self::Output>
-		where T: InfinityEngineType
+	const Signature: &str = "WED ";
+	const Version: &str = "V1.3";
+}
+
+impl InfinityEngineType for Wed {}
+
+impl Readable for Wed
+{
+	fn fromCursor(cursor: &mut Cursor<Vec<u8>>) -> Result<Self>
 	{
-		let identity = Identity::fromCursor(cursor)?;
+		let identity = Identity::fromCursor(cursor)
+			.context("Error parsing WED Identity")?;
 		let overlayCount = cursor.read_u32::<LittleEndian>()?;
 		let doorCount = cursor.read_u32::<LittleEndian>()?;
 		let overlayOffset = cursor.read_u32::<LittleEndian>()?;
@@ -181,17 +184,13 @@ pub struct Overlay
 	pub tis: Option<Tis>,
 }
 
-impl Overlay
+impl Readable for Overlay
 {
-	pub fn fromCursor(cursor: &mut Cursor<Vec<u8>>) -> Result<Self>
+	fn fromCursor(cursor: &mut Cursor<Vec<u8>>) -> Result<Self>
 	{
 		let width = cursor.read_u16::<LittleEndian>()?;
 		let height = cursor.read_u16::<LittleEndian>()?;
-		
-		let mut nameBytes = [0; TypeSize_RESREF];
-		cursor.read_exact(&mut nameBytes)?;
-		let name = readString!(nameBytes);
-		
+		let name = readResRef(cursor)?;
 		let uniqueTileCount = cursor.read_u16::<LittleEndian>()?;
 		let movementType = cursor.read_u16::<LittleEndian>()?;
 		let tilemapOffset = cursor.read_u32::<LittleEndian>()?;
@@ -245,9 +244,9 @@ pub struct SecondaryHeader
 	pub lookupOffset: u32,
 }
 
-impl SecondaryHeader
+impl Readable for SecondaryHeader
 {
-	pub fn fromCursor(cursor: &mut Cursor<Vec<u8>>) -> Result<Self>
+	fn fromCursor(cursor: &mut Cursor<Vec<u8>>) -> Result<Self>
 	{
 		let polygonCount = cursor.read_u32::<LittleEndian>()?;
 		let polygonOffset = cursor.read_u32::<LittleEndian>()?;
@@ -304,18 +303,18 @@ pub struct Door
 	pub closedOffset: u32,
 }
 
-const DoorValue_Open: u16 = 0;
-
 impl Door
 {
-	pub fn isOpen(&self) -> bool { return self.openClosed == DoorValue_Open; }
+	const ValueOpen: u16 = 0;
 	
-	pub fn fromCursor(cursor: &mut Cursor<Vec<u8>>) -> Result<Self>
+	pub fn isOpen(&self) -> bool { return self.openClosed == Self::ValueOpen; }
+}
+
+impl Readable for Door
+{
+	fn fromCursor(cursor: &mut Cursor<Vec<u8>>) -> Result<Self>
 	{
-		let mut nameBytes = [0; TypeSize_RESREF];
-		cursor.read_exact(&mut nameBytes)?;
-		let name = readString!(nameBytes);
-		
+		let name = readResRef(cursor)?;
 		let openClosed = cursor.read_u16::<LittleEndian>()?;
 		let firstDoorIndex = cursor.read_u16::<LittleEndian>()?;
 		let doorCount = cursor.read_u16::<LittleEndian>()?;
@@ -381,18 +380,21 @@ pub struct Tilemap
 	pub unknown: [u8; 3],
 }
 
-const Tilemap_UnknownSize: usize = 3;
-
 impl Tilemap
 {
-	pub fn fromCursor(cursor: &mut Cursor<Vec<u8>>) -> Result<Self>
+	const UnknownSize: usize = 3;
+}
+
+impl Readable for Tilemap
+{
+	fn fromCursor(cursor: &mut Cursor<Vec<u8>>) -> Result<Self>
 	{
 		let start = cursor.read_u16::<LittleEndian>()?;
 		let count = cursor.read_u16::<LittleEndian>()?;
 		let secondary = cursor.read_u16::<LittleEndian>()?;
 		let mask = cursor.read_u8()?;
 		
-		let mut unknown = [0; Tilemap_UnknownSize];
+		let mut unknown = [0; Self::UnknownSize];
 		cursor.read_exact(&mut unknown)?;
 		
 		return Ok(Self
@@ -432,9 +434,9 @@ pub struct WallGroup
 	pub indexCount: u16,
 }
 
-impl WallGroup
+impl Readable for WallGroup
 {
-	pub fn fromCursor(cursor: &mut Cursor<Vec<u8>>) -> Result<Self>
+	fn fromCursor(cursor: &mut Cursor<Vec<u8>>) -> Result<Self>
 	{
 		let startIndex = cursor.read_u16::<LittleEndian>()?;
 		let indexCount = cursor.read_u16::<LittleEndian>()?;
@@ -503,7 +505,7 @@ A point in 2D space used to represent a WED vertex.
 
 See https://gibberlings3.github.io/iesdp/file_formats/ie_formats/wed_v1.3.htm
 
-Each component is a **Little Endian** 16-bit integer.
+Each component is a **Little ** 16-bit integer.
 */
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Vertex
@@ -531,11 +533,12 @@ mod tests
 	use std::path::Path;
 	#[allow(unused_imports)]
 	use image::io::Reader as ImageReader;
+	//use image::ImageOutputFormat;
 	#[allow(unused_imports)]
 	use super::*;
 	use crate::platform::Games;
 	use crate::resource::ResourceManager;
-	use crate::types::ResourceType_WED;
+	use crate::types::ResourceType_WED;//{ResourceType_WEB, Bmp};
 	
     #[test]
     fn TestWed()
@@ -563,8 +566,8 @@ mod tests
 		let resourceManager = ResourceManager::default();
 		let result = resourceManager.loadResource::<Wed>(game, ResourceType_WED, name.to_owned()).unwrap();
 		
-		assert_eq!(Signature, result.identity.signature);
-		assert_eq!(Version, result.identity.version);
+		assert_eq!(Wed::Signature, result.identity.signature);
+		assert_eq!(Wed::Version, result.identity.version);
 		assert_eq!(expectedDoors.len(), result.doorCount as usize);
 		assert_eq!(result.doorCount as usize, result.doors.len());
 		assert_eq!(expectedOverlays.len(), result.overlayCount as usize);
@@ -601,11 +604,20 @@ mod tests
 		
 		//Verify with eyes
 		/*
-		let outPath = Path::new("../../target").join(format!("testoutput_{}.png", name));
+		let tis = result.overlays[0].clone().tis.unwrap();
+		let firstTilemap = result.tilemaps[&result.overlays[0].name][0];
+		let tileLookup = firstTilemap.start;
+		let tileIndex = result.tileIndexLookupTable[tileLookup as usize];
+		let tile = tis.tiles[tileIndex as usize].clone();
+		
+		let bytes = tile.toBytes();
+		let adhocBmp = Bmp::adhoc(64, 64, bytes, None);
+		let imageBytes = adhocBmp.toImageBytes(Some(ImageOutputFormat::Png)).expect("Failed to generate image bytes");
+		
+		let outPath = Path::new("target").join(format!("testoutput_{}.png", name));
 		let mut file = File::create(outPath.as_path())
 			.expect("Output file couldn't be created");
-		let bytes = result.toImageBytes(5120, 3904, Some(ImageOutputFormat::Png)).unwrap();
-		let result = file.write_all(&bytes);
+		let result = file.write_all(&imageBytes);
 		assert!(result.is_ok());
 		// */
 	}
