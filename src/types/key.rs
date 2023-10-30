@@ -4,20 +4,10 @@
 use std::io::Cursor;
 use ::anyhow::Result;
 use ::byteorder::{LittleEndian, ReadBytesExt};
-use crate::{readBytes, readString};
+use crate::bytes::readResRef;
+use crate::{readBytes, parseString};
 use crate::bits::ReadValue;
-use super::{Identity, InfinityEngineType};
-
-const FileName: &str = "chitin.key";
-
-const Signature: &str = "KEY ";
-const Version: &str = "V1  ";
-
-const ResourceLocator_BifEntry: u32 = 12;
-const ResourceLocator_File: u32 = 14;
-const ResourceLocator_Tileset: u32 = 6;
-
-//TODO: Update to be aware of system Endian-ness
+use super::{Identity, InfinityEngineType, Readable};
 
 /**
 The fully parsed contents of a KEY V1 file.
@@ -55,12 +45,18 @@ pub struct Key
 	pub resourceEntries: Vec<ResourceEntry>,
 }
 
-impl InfinityEngineType for Key
+impl Key
 {
-	type Output = Key;
-	
-	fn fromCursor<T>(cursor: &mut Cursor<Vec<u8>>) -> Result<Self::Output>
-		where T: InfinityEngineType
+	const FileName: &str = "chitin.key";
+	const Signature: &str = "KEY ";
+	const Version: &str = "V1  ";
+}
+
+impl InfinityEngineType for Key {}
+
+impl Readable for Key
+{
+	fn fromCursor(cursor: &mut Cursor<Vec<u8>>) -> Result<Self>
 	{
 		let identity = Identity::fromCursor(cursor)?;
 		let bifCount = cursor.read_u32::<LittleEndian>()?;
@@ -89,9 +85,8 @@ impl InfinityEngineType for Key
 			if let Some(mut entry) = bifEntries.get_mut(i)
 			{
 				cursor.set_position(entry.fileNameOffset as u64);
-				// The file name is a NUL terminated string, so just don't read the NUL.
-				let nameBytes = readBytes!(cursor, entry.fileNameLength - 1);
-				entry.fileName = readString!(nameBytes);
+				let nameBytes = readBytes!(cursor, entry.fileNameLength);
+				entry.fileName = parseString!(nameBytes);
 			}
 		}
 		
@@ -138,9 +133,9 @@ pub struct BifEntry
 	pub locatorBits: u16,
 }
 
-impl BifEntry
+impl Readable for BifEntry
 {
-	pub fn fromCursor(cursor: &mut Cursor<Vec<u8>>) -> Result<Self>
+	fn fromCursor(cursor: &mut Cursor<Vec<u8>>) -> Result<Self>
 	{
 		let fileLength = cursor.read_u32::<LittleEndian>()?;
 		let fileNameOffset = cursor.read_u32::<LittleEndian>()?;
@@ -190,10 +185,31 @@ pub struct ResourceEntry
 
 impl ResourceEntry
 {
-	pub fn fromCursor(cursor: &mut Cursor<Vec<u8>>) -> Result<Self>
+	const BifEntry: u64 = 12;
+	const File: u64 = 14;
+	const Tileset: u64 = 6;
+	
+	pub fn indexFile(&self) -> u32
 	{
-		let nameValue = readBytes!(cursor, 8); // RESREF size is 8 bytes
-		let name = readString!(nameValue);
+		return ReadValue(self.locator.into(), Self::File, 0) as u32;
+	}
+	
+	pub fn indexTileset(&self) -> u32
+	{
+		return ReadValue(self.locator.into(), Self::Tileset, Self::File) as u32;
+	}
+	
+	pub fn indexBifEntry(&self) -> u32
+	{
+		return ReadValue(self.locator.into(), Self::BifEntry, Self::File + Self::Tileset) as u32;
+	}
+}
+
+impl Readable for ResourceEntry
+{
+	fn fromCursor(cursor: &mut Cursor<Vec<u8>>) -> Result<Self>
+	{
+		let name = readResRef(cursor)?;
 		let r#type = cursor.read_u16::<LittleEndian>()?;
 		let locator = cursor.read_u32::<LittleEndian>()?;
 		
@@ -203,21 +219,6 @@ impl ResourceEntry
 			r#type,
 			locator
 		});
-	}
-	
-	pub fn indexFile(&self) -> u32
-	{
-		return ReadValue(self.locator, ResourceLocator_File, 0);
-	}
-	
-	pub fn indexTileset(&self) -> u32
-	{
-		return ReadValue(self.locator, ResourceLocator_Tileset, ResourceLocator_File);
-	}
-	
-	pub fn indexBifEntry(&self) -> u32
-	{
-		return ReadValue(self.locator, ResourceLocator_BifEntry, ResourceLocator_File + ResourceLocator_Tileset);
 	}
 }
 
@@ -255,8 +256,8 @@ mod tests
 		
 		let result = ReadFromFile::<Key>(filePath.as_path()).unwrap();
 		
-		assert_eq!(Signature, result.identity.signature);
-		assert_eq!(Version, result.identity.version);
+		assert_eq!(Key::Signature, result.identity.signature);
+		assert_eq!(Key::Version, result.identity.version);
 		assert_eq!(159, result.bifCount);
 		assert_eq!(16694, result.resourceCount);
 		assert_eq!(24, result.bifOffset);
