@@ -12,8 +12,9 @@ Create a new instance of type `T` based on the data contained in `file`.
 
 ---
 
-### Parameters
-- **file** - The fully qualified path to the file being read.
+Name | Description
+---|---
+file | The fully qualified path to the file being read.
 */
 pub fn ReadFromFile<T>(file: &Path) -> Result<T>
 	where T: InfinityEngineType + Readable
@@ -25,6 +26,23 @@ pub fn ReadFromFile<T>(file: &Path) -> Result<T>
 	return T::fromCursor(&mut cursor);
 }
 
+/**
+Read a list of structs from a `std::io::Cursor` instance.
+
+---
+
+Name | Description
+---|---
+cursor | The cursor from which to read.
+offset | The offset used to set the cursor's position before reading.
+count | The number of structs to read from the cursor.
+
+---
+
+### Note
+
+The cursor's position is updated before reading.
+*/
 pub fn ReadList<T>(cursor: &mut Cursor<Vec<u8>>, offset: u64, count: u64) -> Result<Vec<T>>
 	where T: Readable
 {
