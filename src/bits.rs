@@ -39,7 +39,7 @@ shift | The number of bits to shift to the right before applying the mask.
 
 **Returns**: The numeric value of the bits which were read.
 */
-pub fn ReadValue(value: u32, bitIndex: u32, shift: u32) -> u32
+pub fn ReadValue(value: u64, bitIndex: u64, shift: u64) -> u64
 {
 	return (value >> shift) & (1 << bitIndex) - 1;
 }
@@ -70,7 +70,7 @@ mod tests
 	#[test]
 	fn ReadValueTest()
 	{
-		let val: u32 = 0b01111101;
+		let val: u64 = 0b01111101;
 		
 		let mut result = ReadValue(val, 4, 0);
 		assert_eq!(0b1101, result);
