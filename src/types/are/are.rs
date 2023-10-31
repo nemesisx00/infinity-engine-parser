@@ -141,8 +141,8 @@ mod tests
 	use crate::resource::ResourceManager;
 	use crate::types::ResourceType_ARE;
 	
-    #[test]
-    fn ParseAre()
+	#[test]
+	fn ParseAre()
 	{
 		let game = Games::BaldursGate1;
 		let name = "AR2600";
