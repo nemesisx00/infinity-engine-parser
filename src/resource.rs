@@ -200,17 +200,20 @@ impl ResourceManager
 	/**
 	Load a named resource from a `Bif`'s `FileEntry` list.
 	
-	## Parameters
+	---
 	
-	- **game** - The game which identifies the installation path from which to
-		read.
-	- **resourceType** - The type of resource to be loaded.
-	- **resourceName** - The name of the resource to be loaded. Typically a
-		`RESREF` value.
+	Parameter | Description
+	---|---
+	game | The game which identifies the installation path from which to read.
+	resourceType | The type of resource to be loaded.
+	resourceName | The name of the resource to be loaded. Typically a `RESREF` value.
+	
+	---
 	
 	## Generic Types
 	
-	- **T** - The expected output type, which must implement `InfinityEngineType`.
+	- **T** - The expected output type, which must implement `InfinityEngineType`
+		and `Readable`.
 	
 	## Usage
 	
@@ -242,8 +245,8 @@ impl ResourceManager
 		let bif = self.loadBif(game, bifEntry.fileName.to_owned())?;
 		
 		let fileEntry = bif.fileEntries
-					.iter()
-					.find(|entry| entry.index() == resourceEntry.indexFile())?;
+			.iter()
+			.find(|entry| entry.index() == resourceEntry.indexFile())?;
 		
 		let mut cursor = Cursor::new(fileEntry.data.clone());
 		return match T::fromCursor(&mut cursor)
