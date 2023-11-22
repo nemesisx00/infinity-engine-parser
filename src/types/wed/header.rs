@@ -70,7 +70,7 @@ pub struct SecondaryHeader
 	pub polygonOffset: u32,
 	pub verticesOffset: u32,
 	pub wallGroupsOffset: u32,
-	pub lookupOffset: u32,
+	pub polygonLookupOffset: u32,
 }
 
 impl Readable for SecondaryHeader
@@ -81,7 +81,7 @@ impl Readable for SecondaryHeader
 		let polygonOffset = cursor.read_u32::<LittleEndian>()?;
 		let verticesOffset = cursor.read_u32::<LittleEndian>()?;
 		let wallGroupsOffset = cursor.read_u32::<LittleEndian>()?;
-		let lookupOffset = cursor.read_u32::<LittleEndian>()?;
+		let polygonLookupOffset = cursor.read_u32::<LittleEndian>()?;
 		
 		return Ok(Self
 		{
@@ -89,7 +89,7 @@ impl Readable for SecondaryHeader
 			polygonOffset,
 			verticesOffset,
 			wallGroupsOffset,
-			lookupOffset,
+			polygonLookupOffset,
 		});
 	}
 }
