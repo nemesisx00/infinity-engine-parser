@@ -7,7 +7,7 @@ use std::io::Cursor;
 use std::path::Path;
 use ::glob::glob;
 use crate::platform::{Games, FindInstallationPath, KeyFileName};
-use crate::types::{ResourceType_TIS, Bif, InfinityEngineType, Key, Readable, Tis, Tlk, ReadFromFile};
+use crate::types::{ResourceType_TIS, Are, Bif, InfinityEngineType, Key, Readable, Tis, Tlk, ReadFromFile};
 
 /**
 A convenient interface for retrieving resources from Infinity Engine game files.
@@ -99,6 +99,50 @@ impl ResourceManager
 				tlks.remove(&game);
 			}
 		}
+	}
+	
+	/**
+	Load a named ARE resource from a `Bif`'s `FileEntry` list.
+	
+	Relies on `ResourceManager::loadResource` to load the ARE file and its
+	related files (WED).
+	
+	---
+	
+	Parameter | Description
+	---|---
+	game | The game which identifies the installation path from which to read.
+	resourceType | The type of resource to be loaded.
+	resourceName | The name of the resource to be loaded. Typically a `RESREF` value.
+	
+	---
+	
+	## Usage
+	
+	```
+	use crate::{platform::Games, resources::ResourceManager, types::{Are, ResourceType_ARE}};
+	
+	let resourceManager: ResourceManager = ResourceManager::default();
+	let are: Option<Are> = resourceManager.loadAre(Games::BaldursGate1, ResourceType_ARE, "AR2600".to_string());
+	assert!(are.is_some());
+	```
+	
+	## Remarks
+	
+	This method searches through the resource entries in the `game`'s `Key` to
+	find the appropriate `Bif` which contains the required `FileEntry`. Since
+	this method relies on `loadBif` and `loadKey`, both of which cache their
+	results, it will minimize the interaction with the file system when loading
+	multiple resources.
+	*/
+	pub fn loadAre(&self, game: Games, resourceType: i16, resourceName: String) -> Option<Are>
+	{
+		let mut result = self.loadResource::<Are>(game, resourceType, resourceName);
+		if let Some(are) = result.as_mut()
+		{
+			are.readWed(&self, game);
+		}
+		return result;
 	}
 	
 	/**
