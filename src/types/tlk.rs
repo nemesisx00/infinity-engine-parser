@@ -163,5 +163,8 @@ mod tests
 		assert_eq!(Tlk::Version, result.identity.version);
 		assert_ne!(0, result.count);
 		assert_eq!(result.count as usize, result.strings.len());
+		
+		let expected = "Someone disturbs me?!?  I have no time to talk with you <CHARNAME>.  Don't take it personally, I'm just a very busy man.";
+		assert_eq!(expected, result.strings[0]);
 	}
 }
