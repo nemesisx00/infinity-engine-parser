@@ -28,21 +28,23 @@ Offset | Size | Description
 #[derive(Clone, Copy, Debug, Default)]
 pub struct WallGroup
 {
-	pub startIndex: u16,
-	pub indexCount: u16,
+	pub start: u16,
+	pub count: u16,
 }
 
 impl Readable for WallGroup
 {
 	fn fromCursor(cursor: &mut Cursor<Vec<u8>>) -> Result<Self>
 	{
-		let startIndex = cursor.read_u16::<LittleEndian>()?;
-		let indexCount = cursor.read_u16::<LittleEndian>()?;
+		let start = cursor.read_u16::<LittleEndian>()
+			.context("Failed to read u16 start")?;
+		let count = cursor.read_u16::<LittleEndian>()
+			.context("Failed to read u16 count")?;
 		
 		return Ok(Self
 		{
-			startIndex,
-			indexCount,
+			start,
+			count,
 		});
 	}
 }
