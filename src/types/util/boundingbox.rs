@@ -7,7 +7,7 @@ use ::byteorder::{LittleEndian, ReadBytesExt};
 use crate::bits::ReadValue;
 use super::Readable;
 
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct BoundingBox
 {
 	pub bottom: u16,
