@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use std::io::Cursor;
 use ::anyhow::{Context, Result};
 use ::byteorder::{LittleEndian, ReadBytesExt};
-use crate::types::{InfinityEngineType, Readable, Tis};
+use crate::types::{InfinityEngineType, Readable};
 use super::{Door, SecondaryHeader, Overlay, Polygon, Tilemap, WallGroup, WedHeader};
 
 /**
@@ -69,21 +69,24 @@ impl Readable for Wed
 {
 	fn fromCursor(cursor: &mut Cursor<Vec<u8>>) -> Result<Self>
 	{
-		let header = WedHeader::fromCursor(cursor)?;
+		let header = WedHeader::fromCursor(cursor)
+			.context("Failed to read WedHeader header")?;
 		
 		let mut overlays = vec![];
-		for _ in 0..header.overlayCount
+		for i in 0..header.overlayCount
 		{
-			let overlay = Overlay::fromCursor(cursor)?;
+			let overlay = Overlay::fromCursor(cursor)
+				.context(format!("Failed to read Overlay index {}", i))?;
 			overlays.push(overlay);
 		}
 		
 		let secondaryHeader = SecondaryHeader::fromCursor(cursor)?;
 		
 		let mut doors = vec![];
-		for _ in 0..header.doorCount
+		for i in 0..header.doorCount
 		{
-			let door = Door::fromCursor(cursor)?;
+			let door = Door::fromCursor(cursor)
+				.context(format!("Failed to read Door index {}", i))?;
 			doors.push(door);
 		}
 		
@@ -100,7 +103,8 @@ impl Readable for Wed
 			let mut instances = vec![];
 			while tilesRead < tileCount
 			{
-				let tilemap = Tilemap::fromCursor(cursor)?;
+				let tilemap = Tilemap::fromCursor(cursor)
+					.context(format!("Failed to read Tilemap after reading {} tiles", tilesRead))?;
 				tilesRead += tilemap.count as u32;
 				instances.push(tilemap);
 			}
@@ -113,42 +117,47 @@ impl Readable for Wed
 		
 		let mut doorTileCellIndices = vec![];
 		cursor.set_position(header.doorTileOffset as u64);
-		for _ in 0..header.doorCount
+		for i in 0..header.doorCount
 		{
-			let index = cursor.read_u32::<LittleEndian>()?;
+			let index = cursor.read_u32::<LittleEndian>()
+				.context(format!("Failed to read u32 doorTileOffset index {}", i))?;
 			doorTileCellIndices.push(index);
 		}
 		
 		let lookupTableSize = tilemaps.iter().fold(0, |acc, (_, list)| acc + list.len());
 		let mut tileIndexLookup = vec![];
-		for _ in 0..lookupTableSize
+		for i in 0..lookupTableSize
 		{
-			let index = cursor.read_u16::<LittleEndian>()?;
+			let index = cursor.read_u16::<LittleEndian>()
+				.context(format!("Failed to read u16 tileIndexLookup index {}", i))?;
 			tileIndexLookup.push(index);
 		}
 		
 		let wallGroupsSize = tilemaps[&overlays[0].name].len() as u32 / Self::WallGroupSize;
-		
 		let mut wallGroups = vec![];
 		cursor.set_position(secondaryHeader.wallGroupsOffset as u64);
-		for _ in 0..wallGroupsSize
+		for i in 0..wallGroupsSize
 		{
-			let wallGroup = WallGroup::fromCursor(cursor)?;
+			let wallGroup = WallGroup::fromCursor(cursor)
+				.context(format!("Failed to read WallGroup index {}", i))?;
 			wallGroups.push(wallGroup);
 		}
 		
 		let mut polygons = vec![];
 		cursor.set_position(secondaryHeader.polygonOffset as u64);
-		for _ in 0..secondaryHeader.polygonCount
+		for i in 0..secondaryHeader.polygonCount
 		{
-			let polygon = Polygon::fromCursor(cursor)?;
+			let polygon = Polygon::fromCursor(cursor)
+				.context(format!("Failed to read Polygon index {}", i))?;
 			polygons.push(polygon);
 		}
 		
 		let mut polygonIndexLookup = vec![];
-		for _ in 0..secondaryHeader.polygonCount
+		for i in 0..secondaryHeader.polygonCount
 		{
-			polygonIndexLookup.push(cursor.read_u16::<LittleEndian>()?);
+			let idx = cursor.read_u16::<LittleEndian>()
+				.context(format!("Failed to read u16 idx index {}", i))?;
+			polygonIndexLookup.push(idx);
 		}
 		
 		return Ok(Self
@@ -200,6 +209,7 @@ use crate::types::util::BoundingBox; //{ResourceType_WEB, Bmp};
 			("DOOR2602", 1, 19),
 			("DOOR2606", 1, 24),
 		];
+		
 		let expectedOverlays = vec![
 			("AR2600", 80, 60, true, true, 4803, 576),
 			("WTWAVE", 1, 1, true, true, 1, 2984),
@@ -207,8 +217,11 @@ use crate::types::util::BoundingBox; //{ResourceType_WEB, Bmp};
 			("", 0, 0, false, false, 0, 0),
 			("", 0, 0, false, false, 0, 0),
 		];
+		
 		let expectedPolygonCount = 957;
+		
 		let expectedPolygons = vec![
+			// First Read
 			Polygon
 			{
 				start: 0,
@@ -218,11 +231,13 @@ use crate::types::util::BoundingBox; //{ResourceType_WEB, Bmp};
 				boundingBox: BoundingBox
 				{
 					left: 1116,
-					top: 336,
 					right: 1272,
+					top: 336,
 					bottom: 411,
 				},
 			},
+			
+			// Last Read
 			Polygon
 			{
 				start: 11212,
@@ -232,8 +247,8 @@ use crate::types::util::BoundingBox; //{ResourceType_WEB, Bmp};
 				boundingBox: BoundingBox
 				{
 					left: 4523,
-					top: 2046,
 					right: 4620,
+					top: 2046,
 					bottom: 2452,
 				}
 			},
