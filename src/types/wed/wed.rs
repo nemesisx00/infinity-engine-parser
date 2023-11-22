@@ -1,12 +1,11 @@
 #![allow(non_snake_case, non_upper_case_globals)]
 #![cfg_attr(debug_assertions, allow(dead_code))]
 
-use std::collections::HashMap;
 use std::io::Cursor;
 use ::anyhow::{Context, Result};
 use ::byteorder::{LittleEndian, ReadBytesExt};
 use crate::types::{InfinityEngineType, Readable};
-use super::{Door, SecondaryHeader, Overlay, Polygon, Tilemap, WallGroup, WedHeader};
+use super::{Door, SecondaryHeader, Overlay, Polygon, WallGroup, WedHeader};
 
 /**
 The fully parsed contents of a WED file.
@@ -38,9 +37,7 @@ pub struct Wed
 	pub overlays: Vec<Overlay>,
 	pub secondaryHeader: SecondaryHeader,
 	pub doors: Vec<Door>,
-	pub tilemaps: HashMap<String, Vec<Tilemap>>,
 	pub doorTileCellIndices: Vec<u32>,
-	pub tileIndexLookup: Vec<u16>,
 	pub wallGroups: Vec<WallGroup>,
 	pub polygons: Vec<Polygon>,
 	pub polygonIndexLookup: Vec<u16>,
@@ -50,17 +47,6 @@ impl Wed
 {
 	const Signature: &str = "WED ";
 	const Version: &str = "V1.3";
-	
-	/**
-	One thing worth remembering is that one wall group has the following
-	dimensions: `10 tiles * 7.5 tiles`
-	
-	Thus the number of wall groups contained within an area can be calculated
-	based upon the area's dimensions.
-	
-	For example, an area with dimensions 80x60 tiles should have 64 wall groups.
-	*/
-	const WallGroupSize: u32 = 75;
 }
 
 impl InfinityEngineType for Wed {}
@@ -90,31 +76,6 @@ impl Readable for Wed
 			doors.push(door);
 		}
 		
-		let mut tilemaps = HashMap::<String, Vec<Tilemap>>::default();
-		for entry in &overlays
-		{
-			let tileCount = match &entry.tis
-			{
-				Some(tis) => tis.tileCount,
-				None => 0,
-			};
-			
-			let mut tilesRead = 0;
-			let mut instances = vec![];
-			while tilesRead < tileCount
-			{
-				let tilemap = Tilemap::fromCursor(cursor)
-					.context(format!("Failed to read Tilemap after reading {} tiles", tilesRead))?;
-				tilesRead += tilemap.count as u32;
-				instances.push(tilemap);
-			}
-			
-			if !instances.is_empty()
-			{
-				tilemaps.insert(entry.name.to_owned(), instances);
-			}
-		}
-		
 		let mut doorTileCellIndices = vec![];
 		cursor.set_position(header.doorTileOffset as u64);
 		for i in 0..header.doorCount
@@ -124,17 +85,8 @@ impl Readable for Wed
 			doorTileCellIndices.push(index);
 		}
 		
-		let lookupTableSize = tilemaps.iter().fold(0, |acc, (_, list)| acc + list.len());
-		let mut tileIndexLookup = vec![];
-		for i in 0..lookupTableSize
-		{
-			let index = cursor.read_u16::<LittleEndian>()
-				.context(format!("Failed to read u16 tileIndexLookup index {}", i))?;
-			tileIndexLookup.push(index);
-		}
-		
-		let wallGroupsSize = tilemaps[&overlays[0].name].len() as u32 / Self::WallGroupSize;
 		let mut wallGroups = vec![];
+		let wallGroupsSize = *&overlays.iter().fold(0, |acc, overlay| acc + (overlay.tilemaps.len() as u32 / WallGroup::WallGroupSize));
 		cursor.set_position(secondaryHeader.wallGroupsOffset as u64);
 		for i in 0..wallGroupsSize
 		{
@@ -153,6 +105,7 @@ impl Readable for Wed
 		}
 		
 		let mut polygonIndexLookup = vec![];
+		cursor.set_position(secondaryHeader.polygonLookupOffset as u64);
 		for i in 0..secondaryHeader.polygonCount
 		{
 			let idx = cursor.read_u16::<LittleEndian>()
@@ -166,9 +119,7 @@ impl Readable for Wed
 			overlays,
 			secondaryHeader,
 			doors,
-			tilemaps,
 			doorTileCellIndices,
-			tileIndexLookup,
 			wallGroups,
 			polygons,
 			polygonIndexLookup,
@@ -194,6 +145,7 @@ mod tests
 	use crate::resource::ResourceManager;
 	use crate::types::ResourceType_WED;
 	use crate::types::util::BoundingBox; //{ResourceType_WEB, Bmp};
+	use crate::types::wed::Tilemap;
 	
     #[test]
     fn TestWed()
@@ -210,12 +162,41 @@ mod tests
 			("DOOR2606", 1, 24),
 		];
 		
+		let expectedDoorTileIndices = vec![
+			42992192,
+			43057729,
+			195560160,
+			200805367,
+			211749799,
+			217058543,
+		];
+		
 		let expectedOverlays = vec![
-			("AR2600", 80, 60, true, true, 4803, 576),
-			("WTWAVE", 1, 1, true, true, 1, 2984),
-			("WTPOOL", 1, 1, true, true, 1, 3311),
-			("", 0, 0, false, false, 0, 0),
-			("", 0, 0, false, false, 0, 0),
+			("AR2600", 80, 60, true, true, 4803, 576, Some(vec![0, 4794])),
+			("WTWAVE", 1, 1, true, true, 1, 0, Some(vec![0])),
+			("WTPOOL", 1, 1, true, true, 1, 0, Some(vec![0])),
+			("", 0, 0, false, false, 0, 0, None),
+			("", 0, 0, false, false, 0, 0, None),
+		];
+		
+		let expectedAr2600Tilemaps = vec![
+			Tilemap
+			{
+				start: 0,
+				count: 1,
+				secondary: 65535,
+				mask: 2,
+				unknown: [ 0, 0, 0 ],
+			},
+			
+			Tilemap
+			{
+				start: 576,
+				count: 656,
+				secondary: 577,
+				mask: 145,
+				unknown: [ 2, 224, 2 ],
+			},
 		];
 		
 		let expectedWallGroups = vec![
@@ -226,7 +207,6 @@ mod tests
 		let expectedPolygonCount = 957;
 		
 		let expectedPolygons = vec![
-			// First Read
 			Polygon
 			{
 				start: 0,
@@ -242,7 +222,6 @@ mod tests
 				},
 			},
 			
-			// Last Read
 			Polygon
 			{
 				start: 11212,
@@ -259,7 +238,7 @@ mod tests
 			},
 		];
 		
-		let expectedPolygonLookups = vec![ 11216, 651, ];
+		let expectedPolygonLookups = vec![ 562, 922, ];
 		
 		let resourceManager = ResourceManager::default();
 		let result = resourceManager.loadResource::<Wed>(game, ResourceType_WED, name.to_owned()).unwrap();
@@ -281,25 +260,43 @@ mod tests
 			assert_eq!(index, result.doors[i].firstDoorIndex);
 		}
 		
+		for i in 0..expectedDoorTileIndices.len()
+		{
+			assert_eq!(expectedDoorTileIndices[i], result.doorTileCellIndices[i]);
+		}
+		
 		for i in 0..expectedOverlays.len()
 		{
-			let (name, width, height, isSome, hasTilemap, tilemapLength, lastStartIndex) = expectedOverlays[i];
-			assert_eq!(name, result.overlays[i].name);
-			assert_eq!(width, result.overlays[i].width);
-			assert_eq!(height, result.overlays[i].height);
-			assert_eq!(isSome, result.overlays[i].tis.is_some());
-			assert_eq!(hasTilemap, result.tilemaps.contains_key(&result.overlays[i].name));
+			let (name, width, height, isSome, hasTilemap, tilemapLength, lastStartIndex, lookupIndices) = expectedOverlays[i].clone();
+			let overlay = &result.overlays[i];
+			
+			assert_eq!(name, overlay.tilesetName);
+			assert_eq!(width, overlay.width);
+			assert_eq!(height, overlay.height);
+			assert_eq!(isSome, overlay.tis.is_some());
 			
 			if hasTilemap
 			{
-				assert!(!result.tilemaps[&result.overlays[i].name].is_empty());
-				assert_eq!(tilemapLength, result.tilemaps[&result.overlays[i].name].len());
-				assert_eq!(lastStartIndex, result.tilemaps[&result.overlays[i].name].last().unwrap().start);
+				assert!(!overlay.tilemaps.is_empty());
+				assert_eq!(tilemapLength, overlay.tilemaps.len());
+				assert_eq!(lastStartIndex, overlay.tilemaps.last().unwrap().start);
+				
+				if let Some(indices) = lookupIndices
+				{
+					assert_eq!(indices.first(), overlay.tileIndexLookup.first());
+					if indices.len() > 1
+					{
+						assert_eq!(indices.last(), overlay.tileIndexLookup.last());
+					}
+				}
+				
+				if overlay.tilesetName == "AR2600"
+				{
+					assert_eq!(expectedAr2600Tilemaps.first(), overlay.tilemaps.first());
+					assert_eq!(expectedAr2600Tilemaps.last(), overlay.tilemaps.last());
+				}
 			}
 		}
-		
-		assert_eq!(expectedDoors.len(), result.doorTileCellIndices.len());
-		assert_eq!(expectedOverlays.iter().fold(0, |acc, (_, _, _, _, _, count, _)| acc + count), result.tileIndexLookup.len());
 		
 		assert_eq!(expectedWallGroups.first(), result.wallGroups.first());
 		assert_eq!(expectedWallGroups.last(), result.wallGroups.last());
