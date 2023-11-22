@@ -47,7 +47,7 @@ Offset | Size | Description
 - bit 6: Unknown
 - bit 7: Door?
 */
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct Polygon
 {
 	pub start: u32,
@@ -66,7 +66,14 @@ impl Readable for Polygon
 		let count = cursor.read_u32::<LittleEndian>()?;
 		let mask = cursor.read_u8()?;
 		let height = cursor.read_u8()?;
-		let boundingBox = BoundingBox::fromCursor(cursor)?;
+		
+		//Non-standard bounding box order, handle manually
+		let left = cursor.read_u16::<LittleEndian>()?;
+		let right = cursor.read_u16::<LittleEndian>()?;
+		let top = cursor.read_u16::<LittleEndian>()?;
+		let bottom = cursor.read_u16::<LittleEndian>()?;
+		
+		let boundingBox = BoundingBox { bottom, left, right, top };
 		
 		return Ok(Self
 		{
