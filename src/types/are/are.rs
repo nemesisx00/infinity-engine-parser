@@ -36,7 +36,9 @@ pub struct Are
 	pub explored: Vec<u8>,
 	pub doors: Vec<AreDoor>,
 	pub animations: Vec<AreAnimation>,
+	pub automapNotes: Vec<AreAutomapNote>,
 	pub tiledObjects: Vec<AreTiledObject>,
+	pub projectileTraps: Vec<AreProjectileTrap>,
 	pub songEntries: AreSongEntries,
 	pub restInterruptions: AreRestInterruptions,
 }
@@ -97,7 +99,9 @@ impl Readable for Are
 		let explored = Self::readExploredBitmask(cursor, header.explored.offset.into(), header.explored.size)?;
 		let doors = ReadList::<AreDoor>(cursor, header.doors.offset.into(), header.doors.count.into())?;
 		let animations = ReadList::<AreAnimation>(cursor, header.animations.offset.into(), header.animations.count.into())?;
+		let automapNotes = ReadList::<AreAutomapNote>(cursor, header.automapNotes.offset.into(), header.automapNotes.count.into())?;
 		let tiledObjects = ReadList::<AreTiledObject>(cursor, header.tiledObjects.offset.into(), header.tiledObjects.count.into())?;
+		let projectileTraps = ReadList::<AreProjectileTrap>(cursor, header.projectileTraps.offset.into(), header.projectileTraps.count.into())?;
 		
 		if cursor.position() != header.songEntriesOffset.into()
 		{
@@ -126,7 +130,9 @@ impl Readable for Are
 			explored,
 			doors,
 			animations,
+			automapNotes,
 			tiledObjects,
+			projectileTraps,
 			songEntries,
 			restInterruptions,
 		});
@@ -166,7 +172,9 @@ mod tests
 		assert_eq!(result.header.explored.size as usize, result.explored.len());
 		assert_eq!(result.header.doors.count as usize, result.doors.len());
 		assert_eq!(result.header.animations.count as usize, result.animations.len());
+		assert_eq!(result.header.automapNotes.count as usize, result.automapNotes.len());
 		assert_eq!(result.header.tiledObjects.count as usize, result.tiledObjects.len());
+		assert_eq!(result.header.projectileTraps.count as usize, result.projectileTraps.len());
 		assert!(!result.songEntries.ambientDay1.is_empty());
 		assert_eq!(result.restInterruptions.creatureCount as usize, result.restInterruptions.creatures.iter().filter(|c| !c.is_empty()).count());
 	}
