@@ -85,10 +85,7 @@ impl Readable for AreContainer
 		let trapped = cursor.read_u16::<LittleEndian>()?;
 		let trapDetected = cursor.read_u16::<LittleEndian>()?;
 		let trapLaunchCoordinates = Point2D::<u16>::fromCursor(cursor)?;
-		
-		let bbValue = cursor.read_u64::<LittleEndian>()?;
-		let boundingBox = BoundingBox::from(bbValue);
-		
+		let boundingBox = BoundingBox::fromCursor(cursor)?;
 		let firstItemIndex = cursor.read_u32::<LittleEndian>()?;
 		let itemCount = cursor.read_u32::<LittleEndian>()?;
 		let trapScript = readResRef(cursor)?;
