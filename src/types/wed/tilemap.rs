@@ -39,7 +39,7 @@ Offset | Size | Description
 - bit 6: Draw overlay 6
 - bit 7: Draw overlay 7
 */
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct Tilemap
 {
 	pub start: u16,
