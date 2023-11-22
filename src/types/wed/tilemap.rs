@@ -58,13 +58,18 @@ impl Readable for Tilemap
 {
 	fn fromCursor(cursor: &mut Cursor<Vec<u8>>) -> Result<Self>
 	{
-		let start = cursor.read_u16::<LittleEndian>()?;
-		let count = cursor.read_u16::<LittleEndian>()?;
-		let secondary = cursor.read_u16::<LittleEndian>()?;
-		let mask = cursor.read_u8()?;
+		let start = cursor.read_u16::<LittleEndian>()
+			.context("Failed to read u16 start")?;
+		let count = cursor.read_u16::<LittleEndian>()
+			.context("Failed to read u16 count")?;
+		let secondary = cursor.read_u16::<LittleEndian>()
+			.context("Failed to read u16 secondary")?;
+		let mask = cursor.read_u8()
+			.context("Failed to read u8 mask")?;
 		
 		let mut unknown = [0; Self::UnknownSize];
-		cursor.read_exact(&mut unknown)?;
+		cursor.read_exact(&mut unknown)
+			.context("Failed to read [u8; 3] unknown")?;
 		
 		return Ok(Self
 		{
