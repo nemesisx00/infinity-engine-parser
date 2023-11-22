@@ -64,9 +64,9 @@ impl Tis
 	const TileLength: u32 = 4096;
 	
 	const HeaderSize: u32 = 24;
-	const TileSize: u32 = 64;
+	pub const TileSize: u32 = 64;
 	
-	pub fn readData(&mut self, cursor: &mut Cursor<Vec<u8>>, count: u32, ) -> Result<()>
+	pub fn readData(&mut self, cursor: &mut Cursor<Vec<u8>>, count: u32) -> Result<()>
 	{
 		self.tileCount = count;
 		
