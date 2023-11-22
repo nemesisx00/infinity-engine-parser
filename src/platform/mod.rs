@@ -5,7 +5,12 @@ mod global;
 
 pub use global::{Games, KeyFileName};
 
+#[cfg(target_os = "linux")]
+mod linux;
+#[cfg(target_os = "linux")]
+pub use linux::FindInstallationPath;
+
 #[cfg(target_os = "windows")]
-mod win32;
+mod windows;
 #[cfg(target_os = "windows")]
-pub use win32::FindInstallationPath;
+pub use windows::FindInstallationPath;
