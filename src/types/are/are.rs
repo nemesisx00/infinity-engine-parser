@@ -4,9 +4,12 @@
 use std::io::Cursor;
 use ::anyhow::{Context, Result};
 use ::byteorder::ReadBytesExt;
+use crate::platform::Games;
+use crate::resource::ResourceManager;
 use crate::readBytes;
-use crate::types::{InfinityEngineType, ReadList};
+use crate::types::{ResourceType_WED, InfinityEngineType, ReadList};
 use crate::types::util::{Readable, Point2D};
+use crate::types::wed::Wed;
 use super::*;
 
 /**
@@ -41,6 +44,7 @@ pub struct Are
 	pub projectileTraps: Vec<AreProjectileTrap>,
 	pub songEntries: AreSongEntries,
 	pub restInterruptions: AreRestInterruptions,
+	pub wed: Option<Wed>,
 }
 
 impl Are
@@ -74,6 +78,11 @@ impl Are
 		
 		let explored = readBytes!(cursor, size);
 		return Ok(explored);
+	}
+	
+	fn readWed(&mut self, resourceManager: &ResourceManager, game: Games)
+	{
+		self.wed = resourceManager.loadResource(game, ResourceType_WED, self.header.wedName.to_owned());
 	}
 }
 
@@ -135,6 +144,7 @@ impl Readable for Are
 			projectileTraps,
 			songEntries,
 			restInterruptions,
+			..Default::default()
 		});
 	}
 }
@@ -177,5 +187,10 @@ mod tests
 		assert_eq!(result.header.projectileTraps.count as usize, result.projectileTraps.len());
 		assert!(!result.songEntries.ambientDay1.is_empty());
 		assert_eq!(result.restInterruptions.creatureCount as usize, result.restInterruptions.creatures.iter().filter(|c| !c.is_empty()).count());
+		
+		let mut mutableResult = result;
+		mutableResult.readWed(&resourceManager, game);
+		
+		assert!(mutableResult.wed.is_some());
 	}
 }
