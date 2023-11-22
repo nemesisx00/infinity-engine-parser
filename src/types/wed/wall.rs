@@ -32,6 +32,20 @@ pub struct WallGroup
 	pub count: u16,
 }
 
+impl WallGroup
+{
+	/**
+	One thing worth remembering is that one wall group has the following
+	dimensions: `10 tiles * 7.5 tiles`
+	
+	Thus the number of wall groups contained within an area can be calculated
+	based upon the area's dimensions.
+	
+	For example, an area with dimensions 80x60 tiles should have 64 wall groups.
+	*/
+	pub const WallGroupSize: u32 = 75;
+}
+
 impl Readable for WallGroup
 {
 	fn fromCursor(cursor: &mut Cursor<Vec<u8>>) -> Result<Self>
