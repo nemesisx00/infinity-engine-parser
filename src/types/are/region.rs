@@ -83,10 +83,7 @@ impl Readable for AreRegion
 	{
 		let name = readName(cursor)?;
 		let regionType = cursor.read_u16::<LittleEndian>()?;
-		
-		let bbValue = cursor.read_u64::<LittleEndian>()?;
-		let boundingBox = BoundingBox::from(bbValue);
-		
+		let boundingBox = BoundingBox::fromCursor(cursor)?;
 		let vertexCount = cursor.read_u16::<LittleEndian>()?;
 		let vertexFirst = cursor.read_u32::<LittleEndian>()?;
 		let trigger = cursor.read_u32::<LittleEndian>()?;
