@@ -193,7 +193,7 @@ mod tests
 	use crate::platform::Games;
 	use crate::resource::ResourceManager;
 	use crate::types::ResourceType_WED;
-use crate::types::util::BoundingBox; //{ResourceType_WEB, Bmp};
+	use crate::types::util::BoundingBox; //{ResourceType_WEB, Bmp};
 	
     #[test]
     fn TestWed()
