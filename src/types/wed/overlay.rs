@@ -46,13 +46,20 @@ impl Readable for Overlay
 {
 	fn fromCursor(cursor: &mut Cursor<Vec<u8>>) -> Result<Self>
 	{
-		let width = cursor.read_u16::<LittleEndian>()?;
-		let height = cursor.read_u16::<LittleEndian>()?;
-		let name = readResRef(cursor)?;
-		let uniqueTileCount = cursor.read_u16::<LittleEndian>()?;
-		let movementType = cursor.read_u16::<LittleEndian>()?;
-		let tilemapOffset = cursor.read_u32::<LittleEndian>()?;
-		let lookupOffset = cursor.read_u32::<LittleEndian>()?;
+		let width = cursor.read_u16::<LittleEndian>()
+			.context("Failed to read u16 width")?;
+		let height = cursor.read_u16::<LittleEndian>()
+			.context("Failed to read u16 height")?;
+		let name = readResRef(cursor)
+			.context("Failed to read RESREF name")?;
+		let uniqueTileCount = cursor.read_u16::<LittleEndian>()
+			.context("Failed to read u16 uniqueTileCount")?;
+		let movementType = cursor.read_u16::<LittleEndian>()
+			.context("Failed to read u16 movementType")?;
+		let tilemapOffset = cursor.read_u32::<LittleEndian>()
+			.context("Failed to read u32 tilemapOffset")?;
+		let lookupOffset = cursor.read_u32::<LittleEndian>()
+			.context("Failed to read u32 lookupOffset")?;
 		
 		let mut tis = None;
 		if let Ok(resourceManager) = getManager().lock()
