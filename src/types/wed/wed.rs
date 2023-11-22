@@ -259,6 +259,8 @@ use crate::types::util::BoundingBox; //{ResourceType_WEB, Bmp};
 			},
 		];
 		
+		let expectedPolygonLookups = vec![ 11216, 651, ];
+		
 		let resourceManager = ResourceManager::default();
 		let result = resourceManager.loadResource::<Wed>(game, ResourceType_WED, name.to_owned()).unwrap();
 		
@@ -304,6 +306,9 @@ use crate::types::util::BoundingBox; //{ResourceType_WEB, Bmp};
 		
 		assert_eq!(expectedPolygons.first(), result.polygons.first());
 		assert_eq!(expectedPolygons.last(), result.polygons.last());
+		
+		assert_eq!(expectedPolygonLookups.first(), result.polygonIndexLookup.first());
+		assert_eq!(expectedPolygonLookups.last(), result.polygonIndexLookup.last());
 		
 		//Verify with eyes
 		/*
