@@ -215,7 +215,13 @@ use crate::types::util::BoundingBox; //{ResourceType_WEB, Bmp};
 				count: 16,
 				mask: 1,
 				height: 255,
-				boundingBox: BoundingBox::from(115687658620453980),
+				boundingBox: BoundingBox
+				{
+					left: 1116,
+					top: 336,
+					right: 1272,
+					bottom: 411,
+				},
 			},
 			Polygon
 			{
@@ -223,7 +229,13 @@ use crate::types::util::BoundingBox; //{ResourceType_WEB, Bmp};
 				count: 4,
 				mask: 1,
 				height: 255,
-				boundingBox: BoundingBox::from(690185430700396971),
+				boundingBox: BoundingBox
+				{
+					left: 4523,
+					top: 2046,
+					right: 4620,
+					bottom: 2452,
+				}
 			},
 		];
 		
