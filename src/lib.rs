@@ -45,11 +45,11 @@ pub fn LoadResource(game: i32, resourceType: i16, resourceName: char_p::Ref<'_>)
 #[ffi_export]
 pub fn ResourceDimensions(game: i32, resourceType: i16, resourceName: char_p::Ref<'_>) -> Dimensions
 {
-	match resourceType
+	return match resourceType
 	{
 		ResourceType_BMP => LoadBmpDimensions(game, resourceName.to_string()).unwrap_or_default(),
 		_ => Dimensions::default(),
-	}
+	};
 }
 
 #[ffi_export]
