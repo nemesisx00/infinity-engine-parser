@@ -218,6 +218,11 @@ use crate::types::util::BoundingBox; //{ResourceType_WEB, Bmp};
 			("", 0, 0, false, false, 0, 0),
 		];
 		
+		let expectedWallGroups = vec![
+			WallGroup { start: 0, count: 27 },
+			WallGroup { start: 1247, count: 1 },
+		];
+		
 		let expectedPolygonCount = 957;
 		
 		let expectedPolygons = vec![
@@ -293,6 +298,9 @@ use crate::types::util::BoundingBox; //{ResourceType_WEB, Bmp};
 		
 		assert_eq!(expectedDoors.len(), result.doorTileCellIndices.len());
 		assert_eq!(expectedOverlays.iter().fold(0, |acc, (_, _, _, _, _, count, _)| acc + count), result.tileIndexLookup.len());
+		
+		assert_eq!(expectedWallGroups.first(), result.wallGroups.first());
+		assert_eq!(expectedWallGroups.last(), result.wallGroups.last());
 		
 		assert_eq!(expectedPolygons.first(), result.polygons.first());
 		assert_eq!(expectedPolygons.last(), result.polygons.last());

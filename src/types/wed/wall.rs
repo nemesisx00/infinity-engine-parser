@@ -25,7 +25,7 @@ Offset | Size | Description
 0x0000 | 2 | Starting polygon index
 0x0002 | 2 | Count of polygon indices
 */
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct WallGroup
 {
 	pub start: u16,
