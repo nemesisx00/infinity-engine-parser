@@ -62,16 +62,24 @@ impl Readable for Polygon
 	fn fromCursor(cursor: &mut Cursor<Vec<u8>>) -> Result<Self>
 		where Self: Sized
 	{
-		let start = cursor.read_u32::<LittleEndian>()?;
-		let count = cursor.read_u32::<LittleEndian>()?;
-		let mask = cursor.read_u8()?;
-		let height = cursor.read_u8()?;
+		let start = cursor.read_u32::<LittleEndian>()
+			.context("Failed to read u32 start")?;
+		let count = cursor.read_u32::<LittleEndian>()
+			.context("Failed to read u32 count")?;
+		let mask = cursor.read_u8()
+			.context("Failed to read u8 mask")?;
+		let height = cursor.read_u8()
+			.context("Failed to read u8 height")?;
 		
 		//Non-standard bounding box order, handle manually
-		let left = cursor.read_u16::<LittleEndian>()?;
-		let right = cursor.read_u16::<LittleEndian>()?;
-		let top = cursor.read_u16::<LittleEndian>()?;
-		let bottom = cursor.read_u16::<LittleEndian>()?;
+		let left = cursor.read_u16::<LittleEndian>()
+			.context("Failed to read u16 left")?;
+		let right = cursor.read_u16::<LittleEndian>()
+			.context("Failed to read u16 right")?;
+		let top = cursor.read_u16::<LittleEndian>()
+			.context("Failed to read u16 top")?;
+		let bottom = cursor.read_u16::<LittleEndian>()
+			.context("Failed to read u16 bottom")?;
 		
 		let boundingBox = BoundingBox { bottom, left, right, top };
 		
