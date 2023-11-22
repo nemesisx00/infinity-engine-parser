@@ -8,6 +8,7 @@ use crate::bytes::readResRef;
 use crate::getManager;
 use crate::platform::Games;
 use crate::types::{Readable, Tis};
+use super::Tilemap;
 
 /**
 The contents of a single WED Overlay entry.
@@ -34,11 +35,13 @@ pub struct Overlay
 {
 	pub width: u16,
 	pub height: u16,
-	pub name: String,
+	pub tilesetName: String,
 	pub uniqueTileCount: u16,
 	pub movementType: u16,
 	pub tilemapOffset: u32,
-	pub lookupOffset: u32,
+	pub tileIndexLookupOffset: u32,
+	pub tileIndexLookup: Vec<u16>,
+	pub tilemaps: Vec<Tilemap>,
 	pub tis: Option<Tis>,
 }
 
@@ -50,7 +53,7 @@ impl Readable for Overlay
 			.context("Failed to read u16 width")?;
 		let height = cursor.read_u16::<LittleEndian>()
 			.context("Failed to read u16 height")?;
-		let name = readResRef(cursor)
+		let tilesetName = readResRef(cursor)
 			.context("Failed to read RESREF name")?;
 		let uniqueTileCount = cursor.read_u16::<LittleEndian>()
 			.context("Failed to read u16 uniqueTileCount")?;
@@ -58,24 +61,60 @@ impl Readable for Overlay
 			.context("Failed to read u16 movementType")?;
 		let tilemapOffset = cursor.read_u32::<LittleEndian>()
 			.context("Failed to read u32 tilemapOffset")?;
-		let lookupOffset = cursor.read_u32::<LittleEndian>()
+		let tileIndexLookupOffset = cursor.read_u32::<LittleEndian>()
 			.context("Failed to read u32 lookupOffset")?;
 		
 		let mut tis = None;
 		if let Ok(resourceManager) = getManager().lock()
 		{
-			tis = resourceManager.loadTileset(Games::BaldursGate1, name.to_owned());
+			tis = resourceManager.loadTileset(Games::BaldursGate1, tilesetName.to_owned());
+		}
+		
+		let mut tilemaps = vec![];
+		let mut tileIndexLookup = vec![];
+		
+		if let Some(tis) = &tis
+		{
+			let position = cursor.position();
+			
+			cursor.set_position(tilemapOffset as u64);
+			let mut tilesRead = 0;
+			let mut instances = vec![];
+			while tilesRead < tis.tileCount
+			{
+				let tilemap = Tilemap::fromCursor(cursor)
+					.context(format!("Failed to read Tilemap after reading {} tiles", tilesRead))?;
+				tilesRead += tilemap.count as u32;
+				instances.push(tilemap);
+			}
+			
+			if !instances.is_empty()
+			{
+				tilemaps = instances;
+			}
+			
+			cursor.set_position(tileIndexLookupOffset as u64);
+			for i in 0..tilemaps.len()
+			{
+				let index = cursor.read_u16::<LittleEndian>()
+					.context(format!("Failed to read u16 tileIndexLookup index {}", i))?;
+				tileIndexLookup.push(index);
+			}
+			
+			cursor.set_position(position);
 		}
 		
 		return Ok(Self
 		{
 			width,
 			height,
-			name,
+			tilesetName,
 			uniqueTileCount,
-			lookupOffset,
 			movementType,
 			tilemapOffset,
+			tileIndexLookupOffset,
+			tileIndexLookup,
+			tilemaps,
 			tis,
 		});
 	}
