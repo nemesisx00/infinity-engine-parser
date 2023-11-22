@@ -80,7 +80,7 @@ impl Are
 		return Ok(explored);
 	}
 	
-	fn readWed(&mut self, resourceManager: &ResourceManager, game: Games)
+	pub fn readWed(&mut self, resourceManager: &ResourceManager, game: Games)
 	{
 		self.wed = resourceManager.loadResource(game, ResourceType_WED, self.header.wedName.to_owned());
 	}
