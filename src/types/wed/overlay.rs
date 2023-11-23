@@ -45,6 +45,66 @@ pub struct Overlay
 	pub tis: Option<Tis>,
 }
 
+impl Overlay
+{
+	/**
+	Calculate the total size, in bytes, of this overlay's tile data.
+	*/
+	pub fn size(&self) -> u32
+	{
+		return (self.width * self.height) as u32
+			* Tis::TileLength
+			* Tis::ColorLength;
+	}
+	
+	/**
+	Collect the tile data together into a single array of bytes.
+	
+	---
+	
+	An area is a grid, with each 64*64 cell within the grid (called a tile cell)
+	being a location for a tile. Tile cells are numbered, starting at 0, and run
+	from top left to bottom right (i.e. a tile cell number can be calculated by
+	y*width+x). As well the tiles for the main area graphics, an area can use
+	overlays. Overlays are usually used for rivers and lakes. Each overlay layer
+	is placed in a separate grid, which are stacked on top of the base grid.
+	Areas also contain another grid, split into 16*16 squares, for the
+	exploration map.
+	
+	The process of drawing an area is outlined below:
+	
+	- The cell number acts as an index into a tilemap structure.
+	- This give a "tile lookup index" which is an index into the tile indices lookup table.
+	- The tile indices lookup table gives the index into the actual tileset, at which point, the tile is drawn.
+	- The process is repeated for each required overlay (using the associated overlay tilemap / tile indices).
+	*/
+	pub fn getTileBytes(&self) -> Vec<u8>
+	{
+		let mut tiles = vec![];
+		for y in 0..self.height
+		{
+			for x in 0..self.width
+			{
+				let cellId = ((y * (self.width - 1)) + x) as usize;
+				if let Some(tis) = &self.tis
+				{
+					if let Some(tileIndex) = self.tileIndexLookup.get(cellId.clone())
+					{
+						if let Some(tile) = tis.tiles.get(*tileIndex as usize)
+						{
+							let tileBytes = tile.toBytes();
+							tiles.push(tileBytes);
+						}
+					}
+				}
+			}
+		}
+		
+		let bytes = tiles.concat();
+		return bytes;
+	}
+}
+
 impl Readable for Overlay
 {
 	fn fromCursor(cursor: &mut Cursor<Vec<u8>>) -> Result<Self>
