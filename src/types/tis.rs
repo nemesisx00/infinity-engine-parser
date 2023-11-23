@@ -3,7 +3,8 @@
 
 use std::io::{Cursor, Read};
 use ::anyhow::{Context, Result};
-use super::{Identity, Readable};
+use ::byteorder::{LittleEndian, ReadBytesExt};
+use super::{Identity, Readable, ReadIntoSelf, util::Color};
 
 /**
 The fully parsed contents of a TIS file.
@@ -54,26 +55,43 @@ impl Tis
 	
 	256 * 4 = 1024 bytes
 	*/
-	const PaletteSize: usize = 1024;
+	pub const PaletteSize: usize = 256;
 	
 	/**
 	A palette-based TIS tile is always sized 64x64.
 	
 	64 * 64 = 4096 bytes
 	*/
-	const TileLength: u32 = 4096;
+	pub const TileLength: u32 = 4096;
+	
+	/**
+	Each pixel is an index mapping to a u32 color value.
+	*/
+	pub const ColorLength: u32 = 4;
 	
 	const HeaderSize: u32 = 24;
 	pub const TileSize: u32 = 64;
 	
-	pub fn readData(&mut self, cursor: &mut Cursor<Vec<u8>>, count: u32) -> Result<()>
+	pub fn new(count: u32) -> Self
 	{
-		self.tileCount = count;
-		
-		let mut tiles = vec![];
-		for _ in 0..self.tileCount
+		return Self
 		{
-			let tile = TisTileData::fromCursor(cursor)?;
+			tileCount: count,
+			..Default::default()	
+		};
+	}
+}
+
+impl ReadIntoSelf for Tis
+{
+	fn read(&mut self, cursor: &mut Cursor<Vec<u8>>) -> Result<()>
+	{
+		let mut tiles = vec![];
+		
+		for i in 0..self.tileCount
+		{
+			let tile = TisTileData::fromCursor(cursor)
+				.context(format!("Error reading TisTileData for tile index {}", i))?;
 			tiles.push(tile);
 		}
 		
@@ -121,54 +139,28 @@ The pixel data are 8-bit indices from the color palette.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct TisTileData
 {
+	pub colors: Vec<Color>,
 	pub palette: Vec<u32>,
 	pub pixels: Vec<u8>,
 }
 
 impl TisTileData
 {
-	const ColorByteCount: usize = 4;
-	
-	/**
-	Build the palette by processing the color bytes from BGRA to RGBA order.
-	*/
-	pub fn generatePalette(bytes: [u8; Tis::PaletteSize]) -> Result<Vec<u32>>
-	{
-		let mut palette = vec![];
-		
-		for i in 0..Tis::PaletteSize / Self::ColorByteCount
-		{
-			let start = i * Self::ColorByteCount;
-			let end = start + Self::ColorByteCount;
-			let slice = &bytes[start..end];
-			let mut fixed: [u8; Self::ColorByteCount] = slice.split_at(Self::ColorByteCount).0.try_into()
-				.context("Failed to split TIS Tile Palette slice into fixed size slice")?;
-			
-			//Swap B and R from BGRA to make it RGBA
-			let b = fixed[0];
-			fixed[0] = fixed[2]; // r
-			fixed[2] = b;
-			
-			let rgba = u32::from_le_bytes(fixed);
-			palette.push(rgba);
-		}
-		
-		return Ok(palette);
-	}
-	
 	pub fn toBytes(&self) -> Vec<u8>
 	{
-		let mut bytes = vec![];
-		
-		for pixel in self.pixels.clone()
+		let chromaKey = self.colors[0];
+		let mut colors = vec![];
+		for pixel in self.pixels.iter()
 		{
-			if let Some(rgba) = self.palette.get(pixel as usize)
+			let b = match self.colors.get(*pixel as usize)
 			{
-				let values = rgba.to_le_bytes();
-				bytes.append(&mut values.to_vec());
-			}
+				None => chromaKey.bytes(),
+				Some(color) => color.bytes(),
+			};
+			colors.push(b);
 		}
 		
+		let bytes = colors.concat();
 		return bytes;
 	}
 }
@@ -177,19 +169,26 @@ impl Readable for TisTileData
 {
 	fn fromCursor(cursor: &mut Cursor<Vec<u8>>) -> Result<Self>
 	{
-		let mut paletteBytes = [0; Tis::PaletteSize];
-		cursor.read_exact(&mut paletteBytes)
-			.context("Failed reading Tis tile palette")?;
+		let mut colors = vec![];
+		let mut palette = vec![];
+		
+		for i in 0..Tis::PaletteSize
+		{
+			let value = cursor.read_u32::<LittleEndian>()
+				.context(format!("Failed reading Tis tile palette value index {}", i))?;
+			palette.push(value);
+			//The palette contains colors in BGRA order
+			colors.push(Color::fromBGRA(value));
+		}
 		
 		let mut pixels = [0; Tis::TileLength as usize];
 		cursor.read_exact(&mut pixels)
-			.context("Failed reading Tis tile data")?;
-		
-		let palette = Self::generatePalette(paletteBytes)?;
+			.context(format!("Failed reading Tis tile data at position {}", cursor.position()))?;
 		
 		return Ok(Self
 		{
-			palette: palette,
+			colors,
+			palette,
 			pixels: pixels.into(),
 		});
 	}
@@ -225,8 +224,15 @@ mod tests
 		
 		for tile in &result.tiles
 		{
+			assert!(!tile.colors.is_empty());
 			assert!(!tile.palette.is_empty());
 			assert!(!tile.pixels.is_empty());
+			
+			assert_eq!(tile.palette.len(), tile.colors.len());
+			for i in 0..tile.palette.len()
+			{
+				assert_eq!(tile.palette[i], tile.colors[i].intoBGRA());
+			}
 		}
 	}
 }

@@ -7,7 +7,7 @@ use ::byteorder::{LittleEndian, ReadBytesExt};
 use crate::readBytes;
 use crate::bits::ReadValue;
 use crate::types::Tis;
-use crate::types::util::{Identity, InfinityEngineType, Readable};
+use crate::types::util::{Identity, InfinityEngineType, Readable, ReadIntoSelf};
 
 /**
 The fully parsed metadata contents of a BIFF V1 file.
@@ -104,8 +104,8 @@ impl Readable for Bif
 		for mut entry in tilesetEntries.as_mut_slice()
 		{
 			cursor.set_position(entry.offset as u64);
-			let mut tis = Tis::default();
-			tis.readData(cursor, entry.tileCount)?;
+			let mut tis = Tis::new(entry.tileCount);
+			tis.read(cursor)?;
 			entry.data = Some(tis);
 		}
 		
