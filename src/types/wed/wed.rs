@@ -47,6 +47,15 @@ impl Wed
 {
 	const Signature: &str = "WED ";
 	const Version: &str = "V1.3";
+	
+	pub fn exportOverlay(&self, index: usize) -> Option<Vec<u8>>
+	{
+		return match self.overlays.get(index)
+		{
+			Some(overlay) => Some(overlay.getTileBytes()),
+			None => None,
+		};
+	}
 }
 
 impl InfinityEngineType for Wed {}
@@ -138,17 +147,17 @@ mod tests
 	use std::path::Path;
 	#[allow(unused_imports)]
 	use image::io::Reader as ImageReader;
-	//use image::ImageOutputFormat;
+	use image::ImageOutputFormat;
 	#[allow(unused_imports)]
 	use super::*;
 	use crate::platform::Games;
 	use crate::resource::ResourceManager;
-	use crate::types::ResourceType_WED;
-	use crate::types::util::BoundingBox; //{ResourceType_WEB, Bmp};
+	use crate::types::{ResourceType_WED, Bmp, Tis};
+	use crate::types::util::BoundingBox;
 	use crate::types::wed::Tilemap;
 	
     #[test]
-    fn TestWed()
+    fn ParseWed()
 	{
 		let game = Games::BaldursGate1;
 		let name = "AR2600";
@@ -306,24 +315,57 @@ mod tests
 		
 		assert_eq!(expectedPolygonLookups.first(), result.polygonIndexLookup.first());
 		assert_eq!(expectedPolygonLookups.last(), result.polygonIndexLookup.last());
+	}
+	
+    //#[test]
+    fn RenderOverlay()
+	{
+		let game = Games::BaldursGate1;
+		let name = "AR2600";
 		
-		//Verify with eyes
-		/*
-		let tis = result.overlays[0].clone().tis.unwrap();
-		let firstTilemap = result.tilemaps[&result.overlays[0].name][0];
-		let tileLookup = firstTilemap.start;
-		let tileIndex = result.tileIndexLookupTable[tileLookup as usize];
-		let tile = tis.tiles[tileIndex as usize].clone();
+		let resourceManager = ResourceManager::default();
+		let result = resourceManager.loadResource::<Wed>(game, ResourceType_WED, name.to_owned()).unwrap();
 		
-		let bytes = tile.toBytes();
-		let adhocBmp = Bmp::adhoc(64, 64, bytes, None);
-		let imageBytes = adhocBmp.toImageBytes(Some(ImageOutputFormat::Png)).expect("Failed to generate image bytes");
+		let baseOverlayBytes = result.exportOverlay(0);
+		assert!(baseOverlayBytes.is_some());
 		
-		let outPath = Path::new("target").join(format!("testoutput_{}.png", name));
-		let mut file = File::create(outPath.as_path())
-			.expect("Output file couldn't be created");
-		let result = file.write_all(&imageBytes);
-		assert!(result.is_ok());
-		// */
+		// One tile
+		let overlay = &result.overlays[0];
+		if let Some(tis) = &overlay.tis
+		{
+			let tileIndex = 5;
+			let bytes = tis.tiles[tileIndex].toBytes();
+			let ab = Bmp::adhoc(
+				tis.tileSize as i32,
+				tis.tileSize as i32,
+				bytes,
+				None
+			);
+			let data = ab.toImageBytes(Some(ImageOutputFormat::Png)).unwrap();
+			
+			let outPath = Path::new("target").join(format!("testoutput_{}_tile{}.png", name, tileIndex));
+			let mut file = File::create(outPath.as_path()).unwrap();
+			let result = file.write_all(&data);
+			assert!(result.is_ok());
+		}
+		
+		// Whole overlay
+		if let Some(bytes) = baseOverlayBytes
+		{
+			assert_eq!(result.overlays[0].size() as usize, bytes.len());
+			
+			let adhocBmp = Bmp::adhoc(
+				result.overlays[0].width as i32 * Tis::TileSize as i32,
+				result.overlays[0].height as i32 * Tis::TileSize as i32,
+				bytes,
+				None
+			);
+			let data = adhocBmp.toImageBytes(Some(ImageOutputFormat::Png)).unwrap();
+			
+			let outPath = Path::new("target").join(format!("testoutput_{}.png", name));
+			let mut file = File::create(outPath.as_path()).unwrap();
+			let result = file.write_all(&data);
+			assert!(result.is_ok());
+		}
 	}
 }
