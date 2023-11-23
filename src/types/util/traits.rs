@@ -25,3 +25,8 @@ pub trait Readable
 	fn fromCursor(cursor: &mut Cursor<Vec<u8>>) -> Result<Self>
 		where Self: Sized;
 }
+
+pub trait ReadIntoSelf
+{
+	fn read(&mut self, cursor: &mut Cursor<Vec<u8>>) -> Result<()>;
+}

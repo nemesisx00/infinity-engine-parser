@@ -16,7 +16,7 @@ pub use bmp::Bmp;
 pub use key::Key;
 pub use tis::Tis;
 pub use tlk::Tlk;
-pub use util::{TypeSize_RESREF, Dimensions, Identity, InfinityEngineType, Readable, ReadFromFile, ReadList};
+pub use util::{TypeSize_RESREF, Dimensions, Identity, InfinityEngineType, Readable, ReadIntoSelf, ReadFromFile, ReadList};
 
 pub use bif::{
 	ResourceType_ARE,
