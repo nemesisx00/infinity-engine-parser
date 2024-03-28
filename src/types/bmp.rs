@@ -1,6 +1,3 @@
-#![allow(non_snake_case, non_upper_case_globals)]
-#![cfg_attr(debug_assertions, allow(dead_code))]
-
 use std::io::{Cursor, Read};
 use ::anyhow::{Result, Context};
 use ::byteorder::{LittleEndian, ReadBytesExt};
@@ -55,7 +52,7 @@ pub struct Bmp
 
 impl Bmp
 {
-	const Type: &str = "BM";
+	const Type: &'static str = "BM";
 	const TypeLength: usize = 2;
 	
 	pub fn adhoc(width: i32, height: i32, pixels: Vec<u8>, palette: Option<Vec<u32>>) -> Self

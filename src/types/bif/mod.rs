@@ -1,13 +1,8 @@
-#![allow(non_snake_case, non_upper_case_globals)]
-#![cfg_attr(debug_assertions, allow(dead_code))]
-
 mod bif;
 mod bifc;
 mod bifcc;
 
 pub use bif::Bif;
-pub use bifc::Bifc;
-pub use bifcc::Bifcc;
 
 /// 0x0001
 pub const ResourceType_BMP: i16 = 1;

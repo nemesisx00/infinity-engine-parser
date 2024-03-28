@@ -24,3 +24,7 @@ strum = { version = "0.25.0", features = [ "derive" ] }
 
 [target.'cfg(windows)'.dependencies]
 registry = "1.2"
+
+[lints.rust]
+non_snake_case = "allow"
+non_upper_case_globals = "allow"

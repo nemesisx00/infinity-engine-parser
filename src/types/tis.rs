@@ -1,6 +1,3 @@
-#![allow(non_snake_case, non_upper_case_globals)]
-#![cfg_attr(debug_assertions, allow(dead_code))]
-
 use std::io::{Cursor, Read};
 use ::anyhow::{Context, Result};
 use ::byteorder::{LittleEndian, ReadBytesExt};
@@ -47,8 +44,8 @@ pub struct Tis
 
 impl Tis
 {
-	const Signature: &str = "TIS ";
-	const Version: &str = "V1  ";
+	const Signature: &'static str = "TIS ";
+	const Version: &'static str = "V1  ";
 	
 	/**
 	A palette-based TIS tile palette always has 256 32-bit colors.

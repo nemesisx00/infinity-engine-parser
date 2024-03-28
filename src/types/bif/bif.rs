@@ -1,6 +1,3 @@
-#![allow(non_snake_case, non_upper_case_globals)]
-#![cfg_attr(debug_assertions, allow(dead_code))]
-
 use std::io::Cursor;
 use ::anyhow::{Result, Context};
 use ::byteorder::{LittleEndian, ReadBytesExt};
@@ -59,8 +56,8 @@ pub struct Bif
 
 impl Bif
 {
-	pub const Signature: &str = "BIFF";
-	pub const Version: &str = "V1  ";
+	pub const Signature: &'static str = "BIFF";
+	pub const Version: &'static str = "V1  ";
 }
 
 impl InfinityEngineType for Bif {}
@@ -94,14 +91,14 @@ impl Readable for Bif
 			tilesetEntries.push(entry);
 		}
 		
-		for mut entry in fileEntries.as_mut_slice()
+		for entry in fileEntries.as_mut_slice()
 		{
 			cursor.set_position(entry.offset as u64);
 			let bytes = readBytes!(cursor, entry.size);
 			entry.data = bytes;
 		}
 		
-		for mut entry in tilesetEntries.as_mut_slice()
+		for entry in tilesetEntries.as_mut_slice()
 		{
 			cursor.set_position(entry.offset as u64);
 			let mut tis = Tis::new(entry.tileCount);

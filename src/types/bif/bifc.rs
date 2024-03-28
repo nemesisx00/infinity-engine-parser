@@ -1,6 +1,3 @@
-#![allow(non_snake_case, non_upper_case_globals)]
-#![cfg_attr(debug_assertions, allow(dead_code))]
-
 use std::io::{Cursor, Read};
 use ::anyhow::{Result, Context};
 use ::byteorder::{LittleEndian, ReadBytesExt};
@@ -44,8 +41,8 @@ pub struct Bifc
 
 impl Bifc
 {
-	pub const Signature: &str = "BIF ";
-	pub const Version: &str = "V1.0";
+	pub const Signature: &'static str = "BIF ";
+	pub const Version: &'static str = "V1.0";
 
 	/**
 	Decompress and parse this `Bifc`'s compressed data into a fully parsed `Bif`

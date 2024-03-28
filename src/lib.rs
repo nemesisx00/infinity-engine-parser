@@ -1,6 +1,3 @@
-#![allow(non_snake_case, non_upper_case_globals)]
-#![cfg_attr(debug_assertions, allow(dead_code))]
-
 mod bits;
 mod bytes;
 mod platform;
@@ -25,7 +22,7 @@ pub fn getManager() -> &'static Mutex<ResourceManager>
 pub fn FreeBytes(data: repr_c::Vec<u8>) { drop(data); }
 
 #[ffi_export]
-pub fn FreeDimensions(dimensions: Dimensions) { drop(dimensions); }
+pub fn FreeDimensions(_dimensions: Dimensions) { }
 
 #[ffi_export]
 pub fn FreeString(str: char_p::Box) { drop(str); }

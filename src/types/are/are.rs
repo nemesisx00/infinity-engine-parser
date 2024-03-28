@@ -1,6 +1,3 @@
-#![allow(non_snake_case, non_upper_case_globals)]
-#![cfg_attr(debug_assertions, allow(dead_code))]
-
 use std::io::Cursor;
 use ::anyhow::{Context, Result};
 use ::byteorder::ReadBytesExt;
@@ -49,8 +46,8 @@ pub struct Are
 
 impl Are
 {
-	pub const Signature: &str = "AREA";
-	pub const Version: &str = "V1.0";
+	pub const Signature: &'static str = "AREA";
+	pub const Version: &'static str = "V1.0";
 	
 	fn readVertices(cursor: &mut Cursor<Vec<u8>>, offset: u64, count: u16) -> Result<Vec<Point2D<u16>>>
 	{

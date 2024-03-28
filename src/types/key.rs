@@ -1,6 +1,3 @@
-#![allow(non_snake_case, non_upper_case_globals)]
-#![cfg_attr(debug_assertions, allow(dead_code))]
-
 use std::io::Cursor;
 use ::anyhow::Result;
 use ::byteorder::{LittleEndian, ReadBytesExt};
@@ -47,9 +44,9 @@ pub struct Key
 
 impl Key
 {
-	const FileName: &str = "chitin.key";
-	const Signature: &str = "KEY ";
-	const Version: &str = "V1  ";
+	const FileName: &'static str = "chitin.key";
+	const Signature: &'static str = "KEY ";
+	const Version: &'static str = "V1  ";
 }
 
 impl InfinityEngineType for Key {}
@@ -82,7 +79,7 @@ impl Readable for Key
 		
 		for i in 0..bifEntries.len()
 		{
-			if let Some(mut entry) = bifEntries.get_mut(i)
+			if let Some(entry) = bifEntries.get_mut(i)
 			{
 				cursor.set_position(entry.fileNameOffset as u64);
 				let nameBytes = readBytes!(cursor, entry.fileNameLength);
