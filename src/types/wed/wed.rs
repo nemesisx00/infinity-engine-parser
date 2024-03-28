@@ -144,7 +144,7 @@ mod tests
 	use std::path::Path;
 	#[allow(unused_imports)]
 	use image::io::Reader as ImageReader;
-	use image::ImageOutputFormat;
+	use image::ImageFormat;
 	#[allow(unused_imports)]
 	use super::*;
 	use crate::platform::Games;
@@ -338,7 +338,7 @@ mod tests
 				bytes,
 				None
 			);
-			let data = ab.toImageBytes(Some(ImageOutputFormat::Png)).unwrap();
+			let data = ab.toImageBytes(Some(ImageFormat::Png)).unwrap();
 			
 			let outPath = Path::new("target").join(format!("testoutput_{}_tile{}.png", name, tileIndex));
 			let mut file = File::create(outPath.as_path()).unwrap();
@@ -357,7 +357,7 @@ mod tests
 				bytes,
 				None
 			);
-			let data = adhocBmp.toImageBytes(Some(ImageOutputFormat::Png)).unwrap();
+			let data = adhocBmp.toImageBytes(Some(ImageFormat::Png)).unwrap();
 			
 			let outPath = Path::new("target").join(format!("testoutput_{}.png", name));
 			let mut file = File::create(outPath.as_path()).unwrap();

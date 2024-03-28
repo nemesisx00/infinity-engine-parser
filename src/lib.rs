@@ -6,7 +6,7 @@ mod types;
 
 use std::mem;
 use std::sync::{Mutex, OnceLock};
-use ::image::ImageOutputFormat;
+use ::image::ImageFormat;
 use ::safer_ffi::prelude::*;
 use platform::Games;
 use resource::ResourceManager;
@@ -71,7 +71,7 @@ fn LoadBmp(game: i32, name: String) -> Vec<u8>
 			ResourceType_BMP,
 			name.to_owned())
 		{
-			if let Ok(image) = bmp.toImageBytes(Some(ImageOutputFormat::Png))
+			if let Ok(image) = bmp.toImageBytes(Some(ImageFormat::Png))
 			{
 				data = image;
 			}
@@ -108,7 +108,7 @@ fn SizeBmp(game: i32, name: String) -> usize
 			ResourceType_BMP,
 			name.to_owned())
 		{
-			if let Ok(image) = bmp.toImageBytes(Some(ImageOutputFormat::Png))
+			if let Ok(image) = bmp.toImageBytes(Some(ImageFormat::Png))
 			{
 				size = mem::size_of_val(&*image);
 			}

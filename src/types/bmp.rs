@@ -1,7 +1,7 @@
 use std::io::{Cursor, Read};
 use ::anyhow::{Result, Context};
 use ::byteorder::{LittleEndian, ReadBytesExt};
-use ::image::{ImageFormat, ImageOutputFormat};
+use ::image::ImageFormat;
 use ::image::io::Reader as ImageReader;
 use ::strum::FromRepr;
 use crate::readString;
@@ -82,14 +82,14 @@ impl Bmp
 		return bytes;
 	}
 	
-	pub fn toImageBytes(&self, format: Option<ImageOutputFormat>) -> Result<Vec<u8>>
+	pub fn toImageBytes(&self, format: Option<ImageFormat>) -> Result<Vec<u8>>
 	{
 		let reader = ImageReader::with_format(Cursor::new(self.toBytes()), ImageFormat::Bmp)
 			.decode()?;
 		
 		let mut data = vec![];
 		let mut cursor = Cursor::new(&mut data);
-		reader.write_to(&mut cursor, format.unwrap_or(ImageOutputFormat::Png))
+		reader.write_to(&mut cursor, format.unwrap_or(ImageFormat::Png))
 			.context("")?;
 		
 		return Ok(data);
