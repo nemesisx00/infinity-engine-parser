@@ -1,7 +1,6 @@
-use super::global::{Games, GogGameId, SteamAppId};
+use super::global::Games;
 
-pub fn FindInstallationPath(game: Games) -> Option<String>
+pub fn FindInstallationPath(_game: Games) -> Option<String>
 {
-	//TODO: Actually implement this
 	return None;
 }

@@ -347,6 +347,7 @@ mod tests
     use super::*;
 	use crate::platform::Games;
 	use crate::resource::ResourceManager;
+	use crate::test::updateResourceManager;
 	use crate::types::ResourceType_BMP;
 	
 	#[test]
@@ -359,6 +360,8 @@ mod tests
 		];
 		
 		let resourceManager = ResourceManager::default();
+		let _ = updateResourceManager(&resourceManager);
+		
 		for name in resourceNames.clone()
 		{
 			let bmp = resourceManager.loadResource::<Bmp>(Games::BaldursGate1, ResourceType_BMP, name.to_owned()).unwrap();
@@ -391,10 +394,10 @@ mod tests
 			
 			//Verify with eyes
 			/*
-			let outPath = Path::new("../../target").join(format!("testoutput_{}.png", resourceName));
+			let outPath = Path::new("target").join(format!("testoutput_{}.png", name));
 			let mut file = File::create(outPath.as_path())
 				.expect("Output file couldn't be created");
-			let bytes = bmp.toImageBytes(Some(ImageOutputFormat::Png)).unwrap();
+			let bytes = bmp.toImageBytes(Some(ImageFormat::Png)).unwrap();
 			let result = file.write_all(&bytes);
 			assert!(result.is_ok());
 			// */

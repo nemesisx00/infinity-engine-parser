@@ -2,6 +2,7 @@ mod bits;
 mod bytes;
 mod platform;
 mod resource;
+mod test;
 mod types;
 
 use std::mem;
@@ -122,6 +123,7 @@ fn SizeBmp(game: i32, name: String) -> usize
 mod tests
 {
 	use super::*;
+	use self::test::updateResourceManager;
 	
 	#[test]
 	fn TestCache()
@@ -131,6 +133,7 @@ mod tests
 		//Load a file resource.
 		if let Ok(resourceManager) = getManager().lock()
 		{
+			let _ = updateResourceManager(&resourceManager);
 			let _ = resourceManager.loadResource::<Bmp>(game, ResourceType_BMP, "AJANTISG".to_owned());
 		}
 		
@@ -172,6 +175,12 @@ mod tests
 	#[test]
 	fn TestLoadBmp()
 	{
+		//Load a file resource.
+		if let Ok(resourceManager) = getManager().lock()
+		{
+			let _ = updateResourceManager(&resourceManager);
+		}
+		
 		let name = "AJANTISG".to_string();
 		let result = LoadBmp(Games::BaldursGate1 as i32, name);
 		
@@ -181,6 +190,12 @@ mod tests
 	#[test]
 	fn TestLoadResource()
 	{
+		//Load a file resource.
+		if let Ok(resourceManager) = getManager().lock()
+		{
+			let _ = updateResourceManager(&resourceManager);
+		}
+		
 		let game = Games::BaldursGate1 as i32;
 		let r#type = ResourceType_BMP;
 		let name = char_p::new("AJANTISG");
@@ -197,6 +212,12 @@ mod tests
 	#[test]
 	fn TestResourceDimensions()
 	{
+		//Load a file resource.
+		if let Ok(resourceManager) = getManager().lock()
+		{
+			let _ = updateResourceManager(&resourceManager);
+		}
+		
 		let game = Games::BaldursGate1;
 		let name = char_p::new("AJANTISG");
 		let r#type = ResourceType_BMP;
@@ -209,6 +230,12 @@ mod tests
 	#[test]
 	fn TestResourceSize()
 	{
+		//Load a file resource.
+		if let Ok(resourceManager) = getManager().lock()
+		{
+			let _ = updateResourceManager(&resourceManager);
+		}
+		
 		let game = Games::BaldursGate1;
 		let name = char_p::new("AJANTISG");
 		let r#type = ResourceType_BMP;

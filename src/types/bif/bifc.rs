@@ -99,31 +99,39 @@ mod tests
 {
 	use std::path::Path;
     use super::*;
-	use crate::platform::{FindInstallationPath, Games};
+	use crate::platform::Games;
+	use crate::resource::ResourceManager;
+	use crate::test::updateResourceManager;
 	use crate::types::util::ReadFromFile;
 	
 	#[test]
 	fn BifcTest()
 	{
-		let fileName = "CD2/Data/AR100A.cbf";
-		let installPath = FindInstallationPath(Games::IcewindDale1).unwrap();
-		let filePath = Path::new(installPath.as_str()).join(fileName);
+		let resourceManager = ResourceManager::default();
+		let _ = updateResourceManager(&resourceManager);
 		
-		let bifc = ReadFromFile::<Bifc>(filePath.as_path()).unwrap();
-		assert_eq!(Bifc::Signature, bifc.identity.signature);
-		assert_eq!(Bifc::Version, bifc.identity.version);
-		assert_eq!(11, bifc.fileNameLength);
-		// The NUL is dropped when reading
-		assert_eq!((bifc.fileNameLength - 1) as usize, bifc.fileName.len());
-		assert_eq!(6613876, bifc.uncompressedLength);
-		assert_eq!(3322859, bifc.compressedLength);
-		assert_eq!(bifc.compressedLength as usize, bifc.compressedData.len());
-		
-		let bif = bifc.toBif().unwrap();
-		assert_eq!(Bif::Signature, bif.identity.signature);
-		assert_eq!(Bif::Version, bif.identity.version);
-		assert_eq!(20, bif.offset);
-		assert_eq!(bif.fileCount as usize, bif.fileEntries.len());
-		assert_eq!(bif.tilesetCount as usize, bif.tilesetEntries.len());
+		if let Some(installPath) = resourceManager.getInstallPath(Games::IcewindDale1)
+		{
+			let fileName = "CD2/Data/AR100A.cbf";
+			
+			let filePath = Path::new(installPath.as_str()).join(fileName);
+			
+			let bifc = ReadFromFile::<Bifc>(filePath.as_path()).unwrap();
+			assert_eq!(Bifc::Signature, bifc.identity.signature);
+			assert_eq!(Bifc::Version, bifc.identity.version);
+			assert_eq!(11, bifc.fileNameLength);
+			// The NUL is dropped when reading
+			assert_eq!((bifc.fileNameLength - 1) as usize, bifc.fileName.len());
+			assert_eq!(6613876, bifc.uncompressedLength);
+			assert_eq!(3322859, bifc.compressedLength);
+			assert_eq!(bifc.compressedLength as usize, bifc.compressedData.len());
+			
+			let bif = bifc.toBif().unwrap();
+			assert_eq!(Bif::Signature, bif.identity.signature);
+			assert_eq!(Bif::Version, bif.identity.version);
+			assert_eq!(20, bif.offset);
+			assert_eq!(bif.fileCount as usize, bif.fileEntries.len());
+			assert_eq!(bif.tilesetCount as usize, bif.tilesetEntries.len());
+		}
 	}
 }

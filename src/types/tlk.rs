@@ -146,6 +146,7 @@ mod tests
 	use super::*;
 	use crate::platform::Games;
 	use crate::resource::ResourceManager;
+	use crate::test::updateResourceManager;
 	
     #[test]
     fn ParseTlk()
@@ -154,6 +155,8 @@ mod tests
 		let fileName = "dialog.tlk".to_string();
 		
 		let resourceManager = ResourceManager::default();
+		let _ = updateResourceManager(&resourceManager);
+		
 		let result = resourceManager.loadTlk(game, fileName).unwrap();
 		
 		assert_eq!(Tlk::Signature, result.identity.signature);

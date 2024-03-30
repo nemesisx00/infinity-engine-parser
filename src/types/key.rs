@@ -225,6 +225,8 @@ mod tests
 	use std::path::Path;
     use super::*;
 	use crate::platform::{FindInstallationPath, Games, KeyFileName};
+	use crate::resource::ResourceManager;
+	use crate::test::updateResourceManager;
 	use crate::types::util::ReadFromFile;
 	
     #[test]
@@ -246,22 +248,26 @@ mod tests
 	#[test]
 	fn KeyTest()
 	{
-		//TODO: Make this test not rely on actually reading a file from the file system.
-		let installPath = FindInstallationPath(Games::BaldursGate1).unwrap();
-		let keyFile = KeyFileName(Games::BaldursGate1).unwrap();
-		let filePath = Path::new(installPath.as_str()).join(keyFile);
+		let resourceManager = ResourceManager::default();
+		let _ = updateResourceManager(&resourceManager);
 		
-		let result = ReadFromFile::<Key>(filePath.as_path()).unwrap();
-		
-		assert_eq!(Key::Signature, result.identity.signature);
-		assert_eq!(Key::Version, result.identity.version);
-		assert_eq!(159, result.bifCount);
-		assert_eq!(16694, result.resourceCount);
-		assert_eq!(24, result.bifOffset);
-		assert_eq!(4780, result.resourceOffset);
-		assert_eq!(result.bifCount as usize, result.bifEntries.len());
-		assert_ne!(String::default(), result.bifEntries[0].fileName);
-		assert_eq!(result.resourceCount as usize, result.resourceEntries.len());
-		assert_ne!(String::default(), result.resourceEntries[0].name);
+		if let Some(installPath) = resourceManager.getInstallPath(Games::BaldursGate1)
+		{
+			let keyFile = KeyFileName(Games::BaldursGate1).unwrap();
+			let filePath = Path::new(installPath.as_str()).join(keyFile);
+			
+			let result = ReadFromFile::<Key>(filePath.as_path()).unwrap();
+			
+			assert_eq!(Key::Signature, result.identity.signature);
+			assert_eq!(Key::Version, result.identity.version);
+			assert_eq!(159, result.bifCount);
+			assert_eq!(16694, result.resourceCount);
+			assert_eq!(24, result.bifOffset);
+			assert_eq!(4780, result.resourceOffset);
+			assert_eq!(result.bifCount as usize, result.bifEntries.len());
+			assert_ne!(String::default(), result.bifEntries[0].fileName);
+			assert_eq!(result.resourceCount as usize, result.resourceEntries.len());
+			assert_ne!(String::default(), result.resourceEntries[0].name);
+		}
 	}
 }

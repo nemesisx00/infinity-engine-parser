@@ -153,6 +153,7 @@ mod tests
 	use crate::platform::Games;
 	use crate::resource::ResourceManager;
 	use crate::types::ResourceType_ARE;
+	use crate::test::updateResourceManager;
 	
 	#[test]
 	fn ParseAre()
@@ -161,6 +162,8 @@ mod tests
 		let name = "AR2600";
 		
 		let resourceManager = ResourceManager::default();
+		let _ = updateResourceManager(&resourceManager);
+		
 		let result = resourceManager.loadResource::<Are>(game, ResourceType_ARE, name.to_owned()).unwrap();
 		
 		assert_eq!(Are::Signature, result.header.identity.signature);

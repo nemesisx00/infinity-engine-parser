@@ -129,27 +129,35 @@ mod tests
 {
 	use std::path::Path;
     use super::*;
-	use crate::platform::{FindInstallationPath, Games};
+	use crate::platform::Games;
+	use crate::resource::ResourceManager;
+	use crate::test::updateResourceManager;
 	use crate::types::util::ReadFromFile;
 	
 	#[test]
 	fn BifccTest()
 	{
-		let fileName = "data/Data/AREA000A.bif";
-		let installPath = FindInstallationPath(Games::BaldursGate2).unwrap();
-		let filePath = Path::new(installPath.as_str()).join(fileName);
+		let resourceManager = ResourceManager::default();
+		let _ = updateResourceManager(&resourceManager);
 		
-		let bifcc = ReadFromFile::<Bifcc>(filePath.as_path()).unwrap();
-		assert_eq!(Bifcc::Signature, bifcc.identity.signature);
-		assert_eq!(Bifcc::Version, bifcc.identity.version);
-		assert_eq!(27729850, bifcc.uncompressedSize);
-		assert_ne!(0 as usize, bifcc.blocks.len());
-		
-		let bif = bifcc.toBif().unwrap();
-		assert_eq!(Bif::Signature, bif.identity.signature);
-		assert_eq!(Bif::Version, bif.identity.version);
-		assert_eq!(20, bif.offset);
-		assert_eq!(bif.fileCount as usize, bif.fileEntries.len());
-		assert_eq!(bif.tilesetCount as usize, bif.tilesetEntries.len());
+		if let Some(installPath) = resourceManager.getInstallPath(Games::BaldursGate2)
+		{
+			let fileName = "data/Data/AREA000A.bif";
+			
+			let filePath = Path::new(installPath.as_str()).join(fileName);
+			
+			let bifcc = ReadFromFile::<Bifcc>(filePath.as_path()).unwrap();
+			assert_eq!(Bifcc::Signature, bifcc.identity.signature);
+			assert_eq!(Bifcc::Version, bifcc.identity.version);
+			assert_eq!(27729850, bifcc.uncompressedSize);
+			assert_ne!(0 as usize, bifcc.blocks.len());
+			
+			let bif = bifcc.toBif().unwrap();
+			assert_eq!(Bif::Signature, bif.identity.signature);
+			assert_eq!(Bif::Version, bif.identity.version);
+			assert_eq!(20, bif.offset);
+			assert_eq!(bif.fileCount as usize, bif.fileEntries.len());
+			assert_eq!(bif.tilesetCount as usize, bif.tilesetEntries.len());
+		}
 	}
 }

@@ -1,9 +1,10 @@
 use std::collections::HashMap;
 use safer_ffi::derive_ReprC;
+use serde::{Deserialize, Serialize};
 use ::strum::FromRepr;
 
 #[derive_ReprC]
-#[derive(Clone, Copy, Debug, Eq, FromRepr, Hash, PartialEq)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, FromRepr, Hash, PartialEq, Serialize)]
 #[repr(i32)]
 pub enum Games
 {
@@ -19,6 +20,29 @@ pub enum Games
 	PlanescapeTormentEnhancedEdition,
 }
 
+impl TryFrom<i32> for Games
+{
+	type Error = ();
+	
+	fn try_from(value: i32) -> Result<Self, Self::Error> {
+		return match value
+		{
+			0 => Ok(Games::None),
+			1 => Ok(Games::BaldursGate1),
+			2 => Ok(Games::BaldursGate1EnhancedEdition),
+			3 => Ok(Games::BaldursGate2),
+			4 => Ok(Games::BaldursGate2EnhancedEdition),
+			5 => Ok(Games::IcewindDale1),
+			6 => Ok(Games::IcewindDale1EnhancedEdition),
+			7 => Ok(Games::IcewindDale2),
+			8 => Ok(Games::PlanescapeTorment),
+			9 => Ok(Games::PlanescapeTormentEnhancedEdition),
+			_ => Err(()),
+		};
+	}
+}
+
+#[allow(dead_code)]
 pub fn GogGameId(game: Games) -> Option<u32>
 {
 	let map = HashMap::from([
@@ -53,6 +77,7 @@ pub fn KeyFileName(game: Games) -> Option<String>
 	return map.get(&game).cloned();
 }
 
+#[allow(dead_code)]
 pub fn SteamAppId(game: Games) -> Option<u32>
 {
 	let map = HashMap::from([

@@ -1,9 +1,9 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::io::Cursor;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use ::glob::glob;
-use crate::platform::{Games, FindInstallationPath, KeyFileName};
+use crate::platform::{Games, KeyFileName};
 use crate::types::{ResourceType_TIS, Are, Bif, InfinityEngineType, Key, Readable, Tis, Tlk, ReadFromFile};
 
 /**
@@ -21,81 +21,26 @@ calling.
 #[derive(Clone, Debug, Default)]
 pub struct ResourceManager
 {
-	pub keys: RefCell<HashMap<Games, Key>>,
 	pub bifs: RefCell<HashMap<Games, HashMap<String, Bif>>>,
+	pub keys: RefCell<HashMap<Games, Key>>,
+	pub paths: RefCell<HashMap<Games, String>>,
 	pub tlks: RefCell<HashMap<Games, HashMap<String, Tlk>>>,
 }
 
 impl ResourceManager
 {
 	/**
-	Remove a `game`'s `Key` from the cache.
+	Retrieve the path for a game, if one has been set.
 	
 	## Parameters
 	
-	- **game** - The game which identifies the `Key` to be freed.
+	- **game** - The game whose path is being retrieved.
 	*/
-	pub fn removeKey(&self, game: Games)
+	pub fn getInstallPath(&self, game: Games) -> Option<String>
 	{
-		let mut keys = self.keys.borrow_mut();
-		if keys.contains_key(&game)
-		{
-			keys.remove(&game);
-		}
-	}
-	
-	/**
-	Remove a `game`'s `Bif` from the cache.
-	
-	## Parameters
-	
-	- **game** - The game which identifies the `Bif` list containing the `Bif`
-		to be freed.
-	- **fileName** - The path, relative to the installation directory, and file
-		name of the BIF file used to identify the `Bif` to free.
-	*/
-	pub fn removeBif(&self, game: Games, fileName: String)
-	{
-		let mut bifs = self.bifs.borrow_mut();
-		if let Some(map) = bifs.get_mut(&game)
-		{
-			if map.contains_key(&fileName)
-			{
-				map.remove(&fileName);
-			}
-			
-			if map.is_empty()
-			{
-				bifs.remove(&game);
-			}
-		}
-	}
-	
-	/**
-	Remove a `game`'s `Tlk` from the cache.
-	
-	## Parameters
-	
-	- **game** - The game which identifies the `Tlk` list containing the `Tlk`
-		to be freed.
-	- **fileName** - The path, relative to the installation directory, and file
-		name of the TLK file used to identify the `Tlk` to free.
-	*/
-	pub fn removeTlk(&self, game: Games, fileName: String)
-	{
-		let mut tlks = self.tlks.borrow_mut();
-		if let Some(map) = tlks.get_mut(&game)
-		{
-			if map.contains_key(&fileName)
-			{
-				map.remove(&fileName);
-			}
-			
-			if map.is_empty()
-			{
-				tlks.remove(&game);
-			}
-		}
+		return self.paths.borrow()
+			.get(&game)
+			.cloned();
 	}
 	
 	/**
@@ -174,8 +119,28 @@ impl ResourceManager
 	{
 		if !self.bifs.borrow().contains_key(&game) || !self.bifs.borrow()[&game].contains_key(&fileName)
 		{
-			let installPath = FindInstallationPath(game)?;
-			let filePath = Path::new(installPath.as_str()).join(fileName.to_owned());
+			let installPath = self.getInstallPath(game)?;
+			let mut filePath = Path::new(installPath.as_str()).to_path_buf();
+			
+			if fileName.contains("\\")
+			{
+				/*
+				Some platforms don't recognize '\' as a path separator so, when
+				'\' is found, split the string and rebuild it letting PathBuf
+				determine the appropriate separator via .join().
+				*/
+				for p in fileName.split("\\")
+				{
+					filePath = filePath.join(p);
+				}
+			}
+			else
+			{
+				filePath = filePath.join(fileName.to_owned());
+			}
+			
+			let what = filePath.to_str()?;
+			filePath = PathBuf::from(format!("{}.BIF", &what[..what.len()-4]));
 			
 			if let Ok(instance) = ReadFromFile::<Bif>(filePath.as_path())
 			{
@@ -188,6 +153,39 @@ impl ResourceManager
 				if let Some(map) = bifs.get_mut(&game)
 				{
 					map.insert(fileName.to_owned(), instance);
+				}
+			}
+			else
+			{
+				/*
+				Some platforms are case sensitive but the games were not
+				developed with case sensitivity in mind. So when the file cannot
+				be found, check for alternate file extensions based on case.
+				*/
+				
+				let p = filePath.to_str()?;
+				let extension = &p[p.len()-4..];
+				if extension == ".bif"
+				{
+					filePath = PathBuf::from(format!("{}.BIF", &p[..p.len()-4]));
+				}
+				else
+				{
+					filePath = PathBuf::from(format!("{}.bif", &p[..p.len()-4]));
+				}
+				
+				if let Ok(instance) = ReadFromFile::<Bif>(filePath.as_path())
+				{
+					let mut bifs = self.bifs.borrow_mut();
+					if !bifs.contains_key(&game)
+					{
+						bifs.insert(game, HashMap::new());
+					}
+					
+					if let Some(map) = bifs.get_mut(&game)
+					{
+						map.insert(fileName.to_owned(), instance);
+					}
 				}
 			}
 		}
@@ -225,7 +223,7 @@ impl ResourceManager
 	{
 		if !self.keys.borrow().contains_key(&game)
 		{
-			let installPath = FindInstallationPath(game)?;
+			let installPath = self.getInstallPath(game)?;
 			let keyFile = KeyFileName(game)?;
 			let filePath = Path::new(installPath.as_str()).join(keyFile);
 			
@@ -371,10 +369,12 @@ impl ResourceManager
 	{
 		if !self.tlks.borrow().contains_key(&game) || !self.tlks.borrow()[&game].contains_key(&fileName)
 		{
-			let installPath = FindInstallationPath(game)?;
-			let patternString = format!("{}**\\{}", installPath, fileName);
+			let installPath = self.getInstallPath(game)?;
+			let patternString = Path::new(installPath.as_str())
+				.join("**")
+				.join(fileName.to_owned());
 			
-			if let Ok(paths) = glob(&patternString)
+			if let Ok(paths) = glob(&patternString.to_str()?)
 			{
 				for entry in paths
 				{
@@ -400,5 +400,94 @@ impl ResourceManager
 		};
 		
 		return Some(self.tlks.borrow().get(&game)?.get(&fileName)?.to_owned());
+	}
+	
+	/**
+	Remove a `game`'s `Key` from the cache.
+	
+	## Parameters
+	
+	- **game** - The game which identifies the `Key` to be freed.
+	*/
+	pub fn removeKey(&self, game: Games)
+	{
+		let mut keys = self.keys.borrow_mut();
+		if keys.contains_key(&game)
+		{
+			keys.remove(&game);
+		}
+	}
+	
+	/**
+	Remove a `game`'s `Bif` from the cache.
+	
+	## Parameters
+	
+	- **game** - The game which identifies the `Bif` list containing the `Bif`
+		to be freed.
+	- **fileName** - The path, relative to the installation directory, and file
+		name of the BIF file used to identify the `Bif` to free.
+	*/
+	pub fn removeBif(&self, game: Games, fileName: String)
+	{
+		let mut bifs = self.bifs.borrow_mut();
+		if let Some(map) = bifs.get_mut(&game)
+		{
+			if map.contains_key(&fileName)
+			{
+				map.remove(&fileName);
+			}
+			
+			if map.is_empty()
+			{
+				bifs.remove(&game);
+			}
+		}
+	}
+	
+	/**
+	Remove a `game`'s `Tlk` from the cache.
+	
+	## Parameters
+	
+	- **game** - The game which identifies the `Tlk` list containing the `Tlk`
+		to be freed.
+	- **fileName** - The path, relative to the installation directory, and file
+		name of the TLK file used to identify the `Tlk` to free.
+	*/
+	pub fn removeTlk(&self, game: Games, fileName: String)
+	{
+		let mut tlks = self.tlks.borrow_mut();
+		if let Some(map) = tlks.get_mut(&game)
+		{
+			if map.contains_key(&fileName)
+			{
+				map.remove(&fileName);
+			}
+			
+			if map.is_empty()
+			{
+				tlks.remove(&game);
+			}
+		}
+	}
+	
+	/**
+	Assign a path to a game.
+	
+	Only assigns paths which exist and for `Games` values which are not `Games::None`.
+	
+	## Parameters
+	
+	- **game** - The game whose path is being set.
+	- **path** - The absolute path to the game's installation directory.
+	*/
+	pub fn setInstallPath(&self, game: Games, path: String)
+	{
+		if game != Games::None && Path::new(&path).exists()
+		{
+			self.paths.borrow_mut()
+				.insert(game, path.to_owned());
+		}
 	}
 }

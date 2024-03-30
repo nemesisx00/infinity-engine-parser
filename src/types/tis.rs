@@ -206,6 +206,7 @@ mod tests
 	use super::*;
 	use crate::platform::Games;
 	use crate::resource::ResourceManager;
+	use crate::test::updateResourceManager;
 	
     #[test]
     fn TestTis()
@@ -214,6 +215,8 @@ mod tests
 		let name = "AR2600".to_string();
 		
 		let resourceManager = ResourceManager::default();
+		let _ = updateResourceManager(&resourceManager);
+		
 		let result = resourceManager.loadTileset(game, name.to_owned()).unwrap();
 		
 		assert_ne!(0, result.tileCount);

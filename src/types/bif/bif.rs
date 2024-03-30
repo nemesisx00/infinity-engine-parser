@@ -253,32 +253,44 @@ mod tests
 {
 	use std::path::Path;
     use super::*;
-	use crate::platform::{FindInstallationPath, Games, KeyFileName};
+	use crate::platform::{Games, KeyFileName};
+	use crate::resource::ResourceManager;
+	use crate::test::updateResourceManager;
 	use crate::types::Key;
 	use crate::types::util::ReadFromFile;
 	
 	#[test]
 	fn BifTest()
 	{
-		//TODO: Make this test not rely on actually reading a file from the file system.
-		let installPath = FindInstallationPath(Games::BaldursGate1).unwrap();
-		let keyFile = KeyFileName(Games::BaldursGate1).unwrap();
-		let filePath = Path::new(installPath.as_str()).join(keyFile);
+		let resourceManager = ResourceManager::default();
+		let _ = updateResourceManager(&resourceManager);
 		
-		let key = ReadFromFile::<Key>(filePath.as_path()).unwrap();
-		let bifFileName = key.bifEntries[0].fileName.clone();
-		
-		assert_eq!("data\\Default.bif", bifFileName);
-		
-		let bifPath = Path::new(installPath.as_str()).join(bifFileName);
-		let result = ReadFromFile::<Bif>(bifPath.as_path()).unwrap();
-		
-		assert_eq!(Bif::Signature, result.identity.signature);
-		assert_eq!(Bif::Version, result.identity.version);
-		assert_eq!(181, result.fileCount);
-		assert_eq!(0, result.tilesetCount);
-		assert_eq!(20, result.offset);
-		assert_eq!(result.fileCount as usize, result.fileEntries.len());
-		assert_eq!(result.tilesetCount as usize, result.tilesetEntries.len());
+		if let Some(installPath) = resourceManager.getInstallPath(Games::BaldursGate1)
+		{
+			let keyFile = KeyFileName(Games::BaldursGate1).unwrap();
+			let filePath = Path::new(installPath.as_str()).join(keyFile);
+			
+			let key = ReadFromFile::<Key>(filePath.as_path()).unwrap();
+			let bifFileName = key.bifEntries[0].fileName.clone();
+			
+			assert_eq!("data\\Default.bif", bifFileName);
+			
+			let mut bifPath = Path::new(installPath.as_str()).to_path_buf();
+			
+			for p in bifFileName.split("\\")
+			{
+				bifPath = bifPath.join(p);
+			}
+			
+			let result = ReadFromFile::<Bif>(bifPath.as_path()).unwrap();
+			
+			assert_eq!(Bif::Signature, result.identity.signature);
+			assert_eq!(Bif::Version, result.identity.version);
+			assert_eq!(181, result.fileCount);
+			assert_eq!(0, result.tilesetCount);
+			assert_eq!(20, result.offset);
+			assert_eq!(result.fileCount as usize, result.fileEntries.len());
+			assert_eq!(result.tilesetCount as usize, result.tilesetEntries.len());
+		}
 	}
 }

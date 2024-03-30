@@ -149,6 +149,7 @@ mod tests
 	use super::*;
 	use crate::platform::Games;
 	use crate::resource::ResourceManager;
+	use crate::test::updateResourceManager;
 	use crate::types::{ResourceType_WED, Bmp, Tis};
 	use crate::types::util::BoundingBox;
 	use crate::types::wed::Tilemap;
@@ -247,6 +248,8 @@ mod tests
 		let expectedPolygonLookups = vec![ 562, 922, ];
 		
 		let resourceManager = ResourceManager::default();
+		let _ = updateResourceManager(&resourceManager);
+		
 		let result = resourceManager.loadResource::<Wed>(game, ResourceType_WED, name.to_owned()).unwrap();
 		
 		assert_eq!(Wed::Signature, result.header.identity.signature);
@@ -314,18 +317,21 @@ mod tests
 		assert_eq!(expectedPolygonLookups.last(), result.polygonIndexLookup.last());
 	}
 	
-    //#[test]
+    #[test]
     fn RenderOverlay()
 	{
 		let game = Games::BaldursGate1;
 		let name = "AR2600";
 		
 		let resourceManager = ResourceManager::default();
+		let _ = updateResourceManager(&resourceManager);
+		
 		let result = resourceManager.loadResource::<Wed>(game, ResourceType_WED, name.to_owned()).unwrap();
 		
 		let baseOverlayBytes = result.exportOverlay(0);
 		assert!(baseOverlayBytes.is_some());
 		
+		/*
 		// One tile
 		let overlay = &result.overlays[0];
 		if let Some(tis) = &overlay.tis
@@ -345,7 +351,9 @@ mod tests
 			let result = file.write_all(&data);
 			assert!(result.is_ok());
 		}
+		// */
 		
+		/*
 		// Whole overlay
 		if let Some(bytes) = baseOverlayBytes
 		{
@@ -364,5 +372,6 @@ mod tests
 			let result = file.write_all(&data);
 			assert!(result.is_ok());
 		}
+		// */
 	}
 }
