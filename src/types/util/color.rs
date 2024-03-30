@@ -170,6 +170,6 @@ mod tests
 		let expected: u32 = 0xCCBBAADD;
 		let result = Color::fromBGRA(complex);
 		assert_eq!(complex, result.intoBGRA());
-		assert_eq!(expected, result.into());
+		assert_eq!(expected, Into::<u32>::into(result));
 	}
 }

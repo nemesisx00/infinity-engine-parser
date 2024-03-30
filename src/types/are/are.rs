@@ -109,13 +109,13 @@ impl Readable for Are
 		let tiledObjects = ReadList::<AreTiledObject>(cursor, header.tiledObjects.offset.into(), header.tiledObjects.count.into())?;
 		let projectileTraps = ReadList::<AreProjectileTrap>(cursor, header.projectileTraps.offset.into(), header.projectileTraps.count.into())?;
 		
-		if cursor.position() != header.songEntriesOffset.into()
+		if cursor.position() != Into::<u64>::into(header.songEntriesOffset)
 		{
 			cursor.set_position(header.songEntriesOffset.into());
 		}
 		let songEntries = AreSongEntries::fromCursor(cursor)?;
 		
-		if cursor.position() != header.restInterruptions.into()
+		if cursor.position() != Into::<u64>::into(header.restInterruptions)
 		{
 			cursor.set_position(header.restInterruptions.into());
 		}
