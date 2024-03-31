@@ -91,7 +91,7 @@ impl ResourceManager
 	}
 	
 	/**
-	Retrieve the path for a game, if one has been set.
+	Retrieve the installation path for a game, if one has been set.
 	
 	## Parameters
 	
@@ -504,7 +504,7 @@ impl ResourceManager
 	}
 	
 	/**
-	Assign a path to a game.
+	Assign an installation path to a game.
 	
 	Only assigns paths which exist and for `Games` values which are not `Games::None`.
 	
