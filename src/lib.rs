@@ -2,6 +2,7 @@ mod bits;
 mod bytes;
 mod platform;
 mod resource;
+#[cfg(test)]
 mod test;
 mod types;
 

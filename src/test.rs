@@ -1,5 +1,5 @@
 //Code only used in the *.test modules is ignored by the linter
-#![allow(dead_code)]
+#![cfg(test)]
 
 use std::fs::File;
 use ::anyhow::Result;
