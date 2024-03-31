@@ -30,6 +30,67 @@ pub struct ResourceManager
 impl ResourceManager
 {
 	/**
+	Swap the file extension between `.bif` and `.BIF`, depending on the given
+	file path.
+	
+	## Parameters
+	
+	- **filePath** - The `PathBuf` being altered.
+	
+	## Remarks
+	
+	Some platforms are case sensitive but the games were not developed with case
+	sensitivity in mind. So when the file cannot be found, check for alternate
+	file extensions based on case.
+	*/
+	fn alternateBifExtension(&self, filePath: PathBuf) -> Option<PathBuf>
+	{
+		let p = filePath.to_str()?;
+		let extension = &p[p.len()-4..];
+		return match extension
+		{
+			".bif" => Some(PathBuf::from(format!("{}.BIF", &p[..p.len()-4]))),
+			_ => Some(PathBuf::from(format!("{}.bif", &p[..p.len()-4]))),
+		};
+	}
+	
+	/**
+	Generate a consistently formatted `PathBuf` instance based on the given file
+	name and game.
+	
+	## Parameters
+	
+	- **game** - The game used to identify the installation path.
+	- **fileName** - The path, relative to the installation directory, and file
+		name.
+	
+	## Remarks
+	
+	Some platforms don't recognize '\' as a path separator so, when '\' is found,
+	split the string and rebuild it letting PathBuf determine the appropriate
+	separator via .join().
+	*/
+	fn formatFilePath(&self, game: Games, fileName: String) -> Option<PathBuf>
+	{
+		let installPath = self.getInstallPath(game)?;
+		let mut filePath = Path::new(installPath.as_str()).to_path_buf();
+		
+		if fileName.contains("\\")
+		{
+			for p in fileName.split("\\")
+			{
+				filePath = filePath.join(p);
+			}
+		}
+		else
+		{
+			filePath = filePath.join(fileName.to_owned());
+		}
+		
+		return Some(filePath);
+	}
+	
+	/**
 	Retrieve the path for a game, if one has been set.
 	
 	## Parameters
@@ -119,74 +180,11 @@ impl ResourceManager
 	{
 		if !self.bifs.borrow().contains_key(&game) || !self.bifs.borrow()[&game].contains_key(&fileName)
 		{
-			let installPath = self.getInstallPath(game)?;
-			let mut filePath = Path::new(installPath.as_str()).to_path_buf();
+			let filePath = self.formatFilePath(game, fileName.clone())?;
 			
-			if fileName.contains("\\")
+			if !self.readBifFromFile(game, fileName.clone(), filePath.clone())
 			{
-				/*
-				Some platforms don't recognize '\' as a path separator so, when
-				'\' is found, split the string and rebuild it letting PathBuf
-				determine the appropriate separator via .join().
-				*/
-				for p in fileName.split("\\")
-				{
-					filePath = filePath.join(p);
-				}
-			}
-			else
-			{
-				filePath = filePath.join(fileName.to_owned());
-			}
-			
-			let what = filePath.to_str()?;
-			filePath = PathBuf::from(format!("{}.BIF", &what[..what.len()-4]));
-			
-			if let Ok(instance) = ReadFromFile::<Bif>(filePath.as_path())
-			{
-				let mut bifs = self.bifs.borrow_mut();
-				if !bifs.contains_key(&game)
-				{
-					bifs.insert(game, HashMap::new());
-				}
-				
-				if let Some(map) = bifs.get_mut(&game)
-				{
-					map.insert(fileName.to_owned(), instance);
-				}
-			}
-			else
-			{
-				/*
-				Some platforms are case sensitive but the games were not
-				developed with case sensitivity in mind. So when the file cannot
-				be found, check for alternate file extensions based on case.
-				*/
-				
-				let p = filePath.to_str()?;
-				let extension = &p[p.len()-4..];
-				if extension == ".bif"
-				{
-					filePath = PathBuf::from(format!("{}.BIF", &p[..p.len()-4]));
-				}
-				else
-				{
-					filePath = PathBuf::from(format!("{}.bif", &p[..p.len()-4]));
-				}
-				
-				if let Ok(instance) = ReadFromFile::<Bif>(filePath.as_path())
-				{
-					let mut bifs = self.bifs.borrow_mut();
-					if !bifs.contains_key(&game)
-					{
-						bifs.insert(game, HashMap::new());
-					}
-					
-					if let Some(map) = bifs.get_mut(&game)
-					{
-						map.insert(fileName.to_owned(), instance);
-					}
-				}
+				let _ = self.readBifFromFile(game, fileName.clone(), self.alternateBifExtension(filePath)?);
 			}
 		}
 		
@@ -400,6 +398,39 @@ impl ResourceManager
 		};
 		
 		return Some(self.tlks.borrow().get(&game)?.get(&fileName)?.to_owned());
+	}
+	
+	/**
+	Read a Bif file at the given file path and, if successful, cache the result.
+	
+	## Parameters
+	
+	- **game** - The game which identifies the installation path from which to
+		read.
+	- **fileName** - The path, relative to the installation directory, and file
+		name of the BIF file to load.
+	- **filePath** - The `PathBuf` instance generated from the file name and
+		game installation path.
+	*/
+	fn readBifFromFile(&self, game: Games, fileName: String, filePath: PathBuf) -> bool
+	{
+		if let Ok(instance) = ReadFromFile::<Bif>(filePath.as_path())
+		{
+			let mut bifs = self.bifs.borrow_mut();
+			if !bifs.contains_key(&game)
+			{
+				bifs.insert(game, HashMap::new());
+			}
+			
+			if let Some(map) = bifs.get_mut(&game)
+			{
+				map.insert(fileName.to_owned(), instance);
+			}
+			
+			return true;
+		}
+		
+		return false;
 	}
 	
 	/**
